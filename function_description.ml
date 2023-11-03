@@ -3,45 +3,39 @@ module Types = Types_generated
 module Functions (F : Ctypes.FOREIGN) = struct
   open F
 
-  (* uint8_t *lre_compile(
-     int *plen,
-     char *error_msg,
-     int error_msg_size,
-     const char *buf,
-     size_t buf_len,
-     int re_flags,
-     void *opaque) *)
   let lre_compile =
-    foreign
-      "lre_compile"
+    F.foreign "lre_compile"
+      (* int *plen *)
       (Ctypes.ptr Ctypes.int
-       @-> Ctypes.ptr Ctypes.char
-       @-> Ctypes.int
-       @-> Ctypes.string
-       @-> Ctypes.size_t
-       @-> Ctypes.int
-       @-> Ctypes.ptr Ctypes.void
-       @-> F.returning (Ctypes.ptr Ctypes.uint8_t))
-  ;;
+     (* char *error_msg *)
+     @-> Ctypes.ptr Ctypes.char
+      (* int error_msg_size *)
+      @-> Ctypes.int
+      (* const char *buf *)
+      @-> Ctypes.string
+      (* size_t buf_len *)
+      @-> Ctypes.size_t
+      (* int re_flags *)
+      @-> Ctypes.int
+      (* void *opaque *)
+      @-> Ctypes.ptr Ctypes.void
+      @-> F.returning (Ctypes.ptr Ctypes.uint8_t))
 
-  (* int lre_exec(
-     uint8_t **capture,
-     const uint8_t *bc_buf,
-     const uint8_t *cbuf,
-     int cindex,
-     int clen,
-     int cbuf_type,
-     void *opaque) *)
   let lre_exec =
-    foreign
-      "lre_exec"
+    F.foreign "lre_exec"
+      (* uint8_t **capture *)
       (Ctypes.ptr (Ctypes.ptr Ctypes.char)
-       @-> Ctypes.ptr Ctypes.uint8_t
-       @-> Ctypes.string
-       @-> Ctypes.int
-       @-> Ctypes.int
-       @-> Ctypes.int
-       @-> Ctypes.ptr Ctypes.void
-       @-> F.returning Ctypes.int)
-  ;;
+      (* const uint8_t *bc_buf *)
+      @-> Ctypes.ptr Ctypes.uint8_t
+      (* const uint8_t *cbuf *)
+      @-> Ctypes.string
+      (* int cindex *)
+      @-> Ctypes.int
+      (* int clen *)
+      @-> Ctypes.int
+      (* int cbuf_type *)
+      @-> Ctypes.int
+      (* void *opaque *)
+      @-> Ctypes.ptr Ctypes.void
+      @-> F.returning Ctypes.int)
 end
