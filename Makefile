@@ -59,10 +59,11 @@ create-switch: ## Create opam switch
 	opam switch create . 5.1.0 --deps-only --with-test -y
 
 .PHONY: install
-install: create-switch ## Install dependencies
+install: ## Install dependencies
+	opam install . --deps-only --with-test -y
 
 .PHONY: init
-init: setup-githooks install ## Create a local dev enviroment
+init: setup-githooks create-switch install ## Create a local dev enviroment
 
 .PHONY: ppx-test
 ppx-test: ## Run ppx tests
@@ -99,7 +100,3 @@ documentation-watch: ## Generate odoc documentation
 .PHONY: documentation-serve
 documentation-serve: documentation ## Open odoc documentation with default web browser
 	open _build/default/_doc/_html/index.html
-
-$(opam_file): dune-project ## Update the package dependencies when new deps are added to dune-project
-	$(DUNE) build @install
-	opam install . --deps-only --with-test # Install the new dependencies
