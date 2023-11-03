@@ -5,4 +5,5 @@
 
 (library
  (name regexp)
- (public_name regexp.lib))
+ (public_name regexp.lib)
+ (libraries regexp.bindings))

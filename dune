@@ -3,4 +3,35 @@
 ; (flags
 ; (-warn-error +A-d -alert ++browser_only))))
 
-(dirs lib bin test)
+(dirs lib test quickjs bin)
+
+(library
+ (name libregexp)
+ (public_name regexp.bindings)
+ (libraries integers)
+ (foreign_archives quickjs/quickjs)
+ (ctypes
+  (external_library_name libregexp)
+  (headers
+   (include "libregexp.h"))
+  (build_flags_resolver
+   (vendored
+    (c_flags "-Iquickjs")
+    (c_library_flags "-Lquickjs")))
+  (type_description
+   (instance Type)
+   (functor Type_description))
+  (function_description
+   (concurrency sequential)
+   (instance Functions)
+   (functor Function_description))
+  (generated_types Types_generated)
+  (generated_entry_point C)))
+
+(subdir
+ quickjs
+ (copy_files ../shims.c)
+ (foreign_library
+  (archive_name quickjs)
+  (language c)
+  (names libregexp cutils libunicode shims)))
