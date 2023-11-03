@@ -1,0 +1,8 @@
+(env
+ (dev
+  (flags
+   (:standard -w -27))))
+
+(library
+ (name regexp)
+ (public_name regexp.lib))

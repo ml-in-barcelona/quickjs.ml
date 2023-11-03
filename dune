@@ -1,0 +1,6 @@
+; (env
+; (_
+; (flags
+; (-warn-error +A-d -alert ++browser_only))))
+
+(dirs lib bin test)
