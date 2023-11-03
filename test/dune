@@ -1,0 +1,8 @@
+(env
+ (dev
+  (flags
+   (:standard -w -27))))
+
+(test
+ (name suite)
+ (libraries alcotest))
