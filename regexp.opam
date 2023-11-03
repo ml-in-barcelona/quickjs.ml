@@ -11,7 +11,8 @@ depends: [
   "dune" {>= "3.8"}
   "ocaml" {>= "5.0.0"}
   "reason" {>= "3.10.0"}
-  "melange"
+  "integers"
+  "ctypes"
   "alcotest" {with-test}
   "fmt" {with-test}
   "odoc" {with-doc}
