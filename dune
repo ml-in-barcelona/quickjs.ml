@@ -16,8 +16,7 @@
    (include "libregexp.h"))
   (build_flags_resolver
    (vendored
-    (c_flags "-Iquickjs")
-    (c_library_flags "-Lquickjs")))
+    (c_flags "-Iquickjs")))
   (type_description
    (instance Type)
    (functor Type_description))
