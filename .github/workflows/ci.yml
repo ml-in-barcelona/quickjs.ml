@@ -30,7 +30,9 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
 
       - name: Load opam cache when not Windows
         if: runner.os != 'Windows'
@@ -59,7 +61,7 @@ jobs:
         run: opam install . --deps-only --with-doc --with-test
 
       - name: debug
-        run: ls quickjs
+        run: ls ./quickjs
 
       - name: Build
         run: make build
