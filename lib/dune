@@ -4,6 +4,6 @@
    (:standard -w -27))))
 
 (library
- (name regexp)
- (public_name regexp.lib)
- (libraries regexp.bindings))
+ (name RegExp)
+ (public_name regexp)
+ (libraries libregexp ctypes integers))

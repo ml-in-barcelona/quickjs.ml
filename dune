@@ -1,13 +1,8 @@
-; (env
-; (_
-; (flags
-; (-warn-error +A-d -alert ++browser_only))))
-
-(dirs lib test quickjs bin)
+(dirs lib test quickjs demo)
 
 (library
  (name libregexp)
- (public_name regexp.bindings)
+ (public_name regexp.libregexp)
  (libraries integers)
  (foreign_archives quickjs/quickjs)
  (ctypes

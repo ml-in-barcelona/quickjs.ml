@@ -12,7 +12,7 @@ module Functions (F : Ctypes.FOREIGN) = struct
       (* int error_msg_size *)
       @-> Ctypes.int
       (* const char *buf *)
-      @-> Ctypes.string
+      @-> Ctypes.ocaml_string
       (* size_t buf_len *)
       @-> Ctypes.size_t
       (* int re_flags *)
@@ -24,11 +24,11 @@ module Functions (F : Ctypes.FOREIGN) = struct
   let lre_exec =
     F.foreign "lre_exec"
       (* uint8_t **capture *)
-      (Ctypes.ptr (Ctypes.ptr Ctypes.char)
+      (Ctypes.ptr (Ctypes.ptr Ctypes.uint8_t)
       (* const uint8_t *bc_buf *)
       @-> Ctypes.ptr Ctypes.uint8_t
       (* const uint8_t *cbuf *)
-      @-> Ctypes.string
+      @-> Ctypes.ptr Ctypes.uint8_t
       (* int cindex *)
       @-> Ctypes.int
       (* int clen *)
@@ -38,4 +38,9 @@ module Functions (F : Ctypes.FOREIGN) = struct
       (* void *opaque *)
       @-> Ctypes.ptr Ctypes.void
       @-> F.returning Ctypes.int)
+
+  let lre_get_capture_count =
+    F.foreign "lre_get_capture_count"
+      (* const uint8_t *bc_buf *)
+      (Ctypes.ptr Ctypes.uint8_t @-> F.returning Ctypes.int)
 end

@@ -1,3 +1,0 @@
-(executable
- (name bin)
- (libraries regexp.bindings ctypes integers))

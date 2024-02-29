@@ -79,11 +79,11 @@ lib-test: ## Run library tests
 
 .PHONY: demo
 demo: ## Run demo executable
-	$(DUNE) exec demo/index.exe
+	$(DUNE) exec demo/index.exe --action-stdout-on-success=print --display-separate-messages --force --terminal-persistence=clear-on-rebuild
 
 .PHONY: demo-watch
 demo-watch: ## Run demo executable
-	$(DUNE) exec -w demo/index.exe
+	$(DUNE) exec -w demo/index.exe --action-stdout-on-success=print --display-separate-messages --force --terminal-persistence=clear-on-rebuild
 
 .PHONY: subst
 subst: ## Run dune substitute
