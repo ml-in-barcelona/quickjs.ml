@@ -60,9 +60,6 @@ jobs:
       - name: Install deps
         run: opam install . --deps-only --with-doc --with-test
 
-      - name: debug
-        run: ls ./quickjs
-
       - name: Build
         run: make build
 
