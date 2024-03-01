@@ -7,5 +7,5 @@ let print_output (output : (int * int) array) =
   done
 
 let () =
-  let output = RegExp.compile "\\d" |> RegExp.exec "abc123xyz123xyz" in
+  let output = RegExp.make "\\d" "abc123xyz123xyz" in
   print_output output
