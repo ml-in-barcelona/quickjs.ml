@@ -135,17 +135,13 @@ let make regex input =
       Libregexp.C.Functions.lre_get_capture_count compiled_byte_code
     in
     Printf.printf "\ncapture_count %d\n" capture_count;
-    let capture = Ctypes.CArray.make Ctypes.uint8_t capture_count in
-    let start = Ctypes.CArray.start capture in
-    let start_capture = Ctypes.allocate (Ctypes.ptr Ctypes.uint8_t) start in
+    let capture_size = capture_count * 2 in
+    let capture = Ctypes.CArray.make (Ctypes.ptr Ctypes.uint8_t) capture_size in
+    let start_capture = Ctypes.CArray.start capture in
     let matching_length = String.length input in
-    let _matching = Ctypes.ocaml_string_start input in
     let bufp =
       Ctypes.CArray.of_list Ctypes.char (input |> String.to_seq |> List.of_seq)
     in
-    Printf.printf "\nbufp: ";
-    Ctypes.CArray.iter (fun i -> Printf.printf "%c" i) bufp;
-    Printf.printf "\n";
     let buffer =
       Ctypes.coerce (Ctypes.ptr Ctypes.char)
         (Ctypes.ptr Ctypes.uint8_t)
@@ -153,25 +149,48 @@ let make regex input =
     in
     Printf.printf "\nmatching_length %d\n" matching_length;
     let index = 0 in
-    (* Return 1 if match, 0 if not match or -1 if error. cindex is the
-       starting position of the match and must be such as 0 <= cindex <=
-       clen. *)
     let exec_result =
       Libregexp.C.Functions.lre_exec start_capture compiled_byte_code buffer
         index matching_length 0 Ctypes.null
     in
-    let capture_count =
-      Libregexp.C.Functions.lre_get_capture_count compiled_byte_code
-    in
-    Printf.printf "\ncapture_count %d\n" capture_count;
+    (* Return 1 if match, 0 if not match or -1 if error. cindex is the
+       starting position of the match and must be such as 0 <= cindex <=
+       clen. *)
     match exec_result with
     | 1 ->
-        capture
-        |> Ctypes.CArray.iter (fun i ->
-               Printf.sprintf "capture: %d" (Unsigned.UInt8.to_int i)
-               |> print_endline);
-        (* printd_intCtypes.CArray.length capture *)
-        [||]
+        print_endline (Printf.sprintf "capture_size: %d" capture_size);
+        (* capture
+           |> Ctypes.CArray.iter (fun p ->
+                  let i = Ctypes.( !@ ) p in
+                  (* let start_ptr = Ctypes.CArray.get capture i in *)
+                  (* let end_ptr = Ctypes.CArray.get capture (i + 1) in *)
+                  let start_index = Unsigned.UInt8.to_int start_ptr in
+                  let end_index = Unsigned.UInt8.to_int end_ptr in
+                  let substring =
+                    String.sub matching start_index (end_index - start_index)
+                  in
+                  substrings.(i / 2) <- substring;
+                  Printf.sprintf "capture: %d" (Unsigned.UInt8.to_int i)
+                  |> print_endline); *)
+        (* Don't make an array of 0 *)
+        let substrings = Array.make capture_count "" in
+
+        let i = ref 0 in
+        while !i < capture_size - 1 do
+          let start_ptr = Ctypes.CArray.get capture !i in
+          let end_ptr = Ctypes.CArray.get capture (!i + 1) in
+          let start_index = Ctypes.ptr_diff buffer start_ptr in
+          let length = Ctypes.ptr_diff start_ptr end_ptr in
+          print_endline (Printf.sprintf "start_index: %d" start_index);
+          print_endline (Printf.sprintf "len: %d" length);
+
+          let substring = String.sub input start_index length in
+          substrings.(!i / 2) <- substring;
+
+          (*  *)
+          i := !i + 2
+        done;
+        substrings
     | 0 ->
         Printf.sprintf "nothing found" |> print_endline;
         [||]
