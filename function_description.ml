@@ -43,4 +43,9 @@ module Functions (F : Ctypes.FOREIGN) = struct
     F.foreign "lre_get_capture_count"
       (* const uint8_t *bc_buf *)
       (Ctypes.ptr Ctypes.uint8_t @-> F.returning Ctypes.int)
+
+  let lre_get_flags =
+    F.foreign "lre_get_flags"
+      (* const uint8_t *bc_buf *)
+      (Ctypes.ptr Ctypes.uint8_t @-> F.returning Ctypes.int)
 end

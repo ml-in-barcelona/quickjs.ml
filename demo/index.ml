@@ -6,6 +6,6 @@ let print_output (output : string array) =
   done
 
 let () =
-  let output = RegExp.make "\\d" "ab9" in
-  (* ["8", "1", "3", "1", "2", "3"] *)
+  let output = RegExp.make "\\d" "m" "1ab9" in
+  (* ["1", "9"] *)
   print_output output
