@@ -2,7 +2,6 @@
 
 (library
  (name bindings)
- (public_name quickjs.bindings)
  (libraries integers)
  (foreign_archives quickjs/quickjs)
  (ctypes
