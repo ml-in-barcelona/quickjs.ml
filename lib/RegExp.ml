@@ -89,6 +89,7 @@ let source regexp = regexp.source
 let input result = result.input
 let setLastIndex regexp lastIndex = regexp.lastIndex <- lastIndex
 let captures regexp = regexp.captures
+let flags regexp = flags_to_string regexp.flags
 
 (* exec is not a binding to lre_exec but an implementation of `js_regexp_exec` *)
 let exec regexp input =
@@ -168,4 +169,6 @@ let exec regexp input =
       { captures = [||]; input }
   | _ (* -1 *) -> raise (Invalid_argument "Error")
 
-let flags regexp = flags_to_string regexp.flags
+let test regexp input =
+  let result = exec regexp input in
+  Array.length result.captures > 0

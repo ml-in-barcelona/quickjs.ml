@@ -11,6 +11,7 @@ val compile : string -> string -> regex
 val index : regex -> int
 val setLastIndex : regex -> int -> unit
 val exec : regex -> string -> result
+val test : regex -> string -> bool
 val captures : result -> string array
 val flags : regex -> string
 val input : result -> string
