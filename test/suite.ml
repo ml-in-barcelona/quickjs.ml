@@ -173,19 +173,19 @@ let () =
               assert_result (RegExp.captures result) [| "0" |]);
           test "with y (sticky)" (fun () ->
               let regex = RegExp.compile "foo" "y" in
-              assert_int (RegExp.lastIndex regex) 0;
+              assert_int (RegExp.index regex) 0;
               let input = "foofoofoo" in
               let result = RegExp.exec regex input in
-              assert_int (RegExp.lastIndex regex) 3;
+              assert_int (RegExp.index regex) 3;
               assert_result (RegExp.captures result) [| "foo" |];
               let result = RegExp.exec regex input in
-              assert_int (RegExp.lastIndex regex) 6;
+              assert_int (RegExp.index regex) 6;
               assert_result (RegExp.captures result) [| "foo" |];
               let result = RegExp.exec regex input in
-              assert_int (RegExp.lastIndex regex) 9;
+              assert_int (RegExp.index regex) 9;
               assert_result (RegExp.captures result) [| "foo" |];
               let result = RegExp.exec regex input in
-              assert_int (RegExp.lastIndex regex) 0;
+              assert_int (RegExp.index regex) 0;
               assert_result (RegExp.captures result) [||]);
           test "groups" (fun () ->
               let regex = RegExp.compile "(xyz)" "" in
