@@ -14,7 +14,7 @@
 (authors "David Sancho <dsnxmoreno@gmail.com>")
 
 (source
- (github ml-in-barcelona/quickjs))
+ (github ml-in-barcelona/quickjs.ml))
 
 (generate_opam_files true)
 

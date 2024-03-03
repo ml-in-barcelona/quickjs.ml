@@ -20,12 +20,14 @@
    (instance Functions)
    (functor Function_description))
   (generated_types Types_generated)
-  (generated_entry_point C)))
+  (generated_entry_point C))
+ (foreign_stubs
+  (language c)
+  (names shims)))
 
 (subdir
  quickjs
- (copy_files ../shims.c)
  (foreign_library
   (archive_name quickjs)
   (language c)
-  (names libregexp cutils libunicode shims)))
+  (names libregexp libunicode cutils)))
