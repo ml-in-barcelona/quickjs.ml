@@ -9,7 +9,7 @@ type result = { captures : string array }
 let lre_flag_global = 0b01
 let lre_flag_ignorecase = 0b10
 let lre_flag_multiline = 0b100
-let lre_flag_dotall = 0b100
+let lre_flag_dotall = 0b1000
 let lre_flag_unicode = 0b10000
 let lre_flag_sticky = 0b100000
 let has_flag flags flag = flags land flag != 0
