@@ -116,12 +116,20 @@ let assert_result left right =
   Alcotest.(check (array string)) "match" right left
 
 let assert_int left right = Alcotest.(check int) "match" right left
+let assert_string left right = Alcotest.(check string) "match" right left
 
 let () =
   Alcotest.run "RegExp"
     [
       ( "test",
         [
+          test "flags" (fun () ->
+              let regex = RegExp.compile "\\d" "" in
+              assert_string (RegExp.flags regex) "";
+              let regex = RegExp.compile "\\d" "g" in
+              assert_string (RegExp.flags regex) "g";
+              let regex = RegExp.compile "\\d" "gy" in
+              assert_string (RegExp.flags regex) "gy");
           test "basic" (fun () ->
               let regex = RegExp.compile "[0-9]+" "" in
               let result = RegExp.exec regex "abc123xyz" in

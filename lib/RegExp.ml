@@ -45,6 +45,26 @@ let parse_flags flags =
   in
   parse_flags' (String.to_seq flags |> List.of_seq) 0
 
+let flags_to_string flags =
+  let rec flags_to_string' flags acc =
+    match flags with
+    | 0 -> acc
+    | _ when has_flag flags lre_flag_global ->
+        flags_to_string' (flags land lre_flag_global lxor flags) (acc ^ "g")
+    | _ when has_flag flags lre_flag_ignorecase ->
+        flags_to_string' (flags land lre_flag_ignorecase lxor flags) (acc ^ "i")
+    | _ when has_flag flags lre_flag_multiline ->
+        flags_to_string' (flags land lre_flag_multiline lxor flags) (acc ^ "m")
+    | _ when has_flag flags lre_flag_dotall ->
+        flags_to_string' (flags land lre_flag_dotall lxor flags) (acc ^ "s")
+    | _ when has_flag flags lre_flag_unicode ->
+        flags_to_string' (flags land lre_flag_unicode lxor flags) (acc ^ "u")
+    | _ when has_flag flags lre_flag_sticky ->
+        flags_to_string' (flags land lre_flag_sticky lxor flags) (acc ^ "y")
+    | _ -> acc
+  in
+  flags_to_string' flags ""
+
 let compile re flags =
   let compiled_byte_code_len = Ctypes.allocate Ctypes.int 0 in
   let size_of_error_msg = 64 in
@@ -144,3 +164,5 @@ let exec regexp input =
       | false -> ());
       { captures = [||] }
   | _ (* -1 *) -> raise (Invalid_argument "Error")
+
+let flags regexp = flags_to_string regexp.flags

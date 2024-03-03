@@ -12,3 +12,4 @@ val lastIndex : regex -> int
 val setLastIndex : regex -> int -> unit
 val exec : regex -> string -> result
 val captures : result -> string array
+val flags : regex -> string
