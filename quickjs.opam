@@ -5,8 +5,8 @@ synopsis:
 maintainer: ["David Sancho <dsnxmoreno@gmail.com>"]
 authors: ["David Sancho <dsnxmoreno@gmail.com>"]
 license: "MIT"
-homepage: "https://github.com/ml-in-barcelona/quickjs"
-bug-reports: "https://github.com/ml-in-barcelona/quickjs/issues"
+homepage: "https://github.com/ml-in-barcelona/quickjs.ml"
+bug-reports: "https://github.com/ml-in-barcelona/quickjs.ml/issues"
 depends: [
   "dune" {>= "3.8"}
   "ocaml" {>= "5.0.0"}
@@ -33,4 +33,4 @@ build: [
     "@doc" {with-doc}
   ]
 ]
-dev-repo: "git+https://github.com/ml-in-barcelona/quickjs.git"
+dev-repo: "git+https://github.com/ml-in-barcelona/quickjs.ml.git"
