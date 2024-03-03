@@ -63,6 +63,8 @@ let compile re flags =
       print_endline error;
       raise (Invalid_argument "Compilation failed")
 
+let lastIndex regexp = regexp.lastIndex
+
 (* exec is not a binding to lre_exec but an implementation of `js_regexp_exec` *)
 let exec regexp input =
   let capture_count = Bindings.C.Functions.lre_get_capture_count regexp.bc in
@@ -88,15 +90,9 @@ let exec regexp input =
     (* if ((re_flags & (LRE_FLAG_GLOBAL | LRE_FLAG_STICKY)) == 0) {
            last_index = 0;
        } *)
-    match global regexp.flags with
-    | true ->
-        print_endline "global and flags are set";
-        regexp.lastIndex
-    | false ->
-        print_endline
-          (Printf.sprintf "flags %d, global: %d" regexp.flags lre_flag_global);
-        print_endline "not global and flags are not set";
-        0
+    match global regexp.flags || sticky regexp.flags with
+    | true -> regexp.lastIndex
+    | false -> 0
   in
 
   (* Printf.printf "lastIndex %d\n" regexp.lastIndex; *)
@@ -138,9 +134,11 @@ let exec regexp input =
             *) *)
         i := !i + 2
       done;
-      (* mutable lastIndex : int *)
       { captures = substrings }
   | 0 ->
-      (* Printf.sprintf "nothing found" |> print_endline; *)
+      (* When there's no matches left, sticky goes to lastIndex 0 *)
+      (match sticky regexp.flags with
+      | true -> regexp.lastIndex <- 0
+      | false -> ());
       { captures = [||] }
   | _ (* -1 *) -> raise (Invalid_argument "Error")
