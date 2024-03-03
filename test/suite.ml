@@ -125,71 +125,71 @@ let () =
           test "basic" (fun () ->
               let regex = RegExp.compile "[0-9]+" "" in
               let result = RegExp.exec regex "abc123xyz" in
-              assert_result result.captures [| "123" |]);
+              assert_result (RegExp.captures result) [| "123" |]);
           test "exec" (fun () ->
               let regex = RegExp.compile "[0-9]+" "" in
               let result = RegExp.exec regex "abc00123xyz456_0" in
-              assert_result result.captures [| "00123" |];
+              assert_result (RegExp.captures result) [| "00123" |];
               let result = RegExp.exec regex "abc00123xyz456_0" in
-              assert_result result.captures [| "00123" |]);
+              assert_result (RegExp.captures result) [| "00123" |]);
           test "basic text" (fun () ->
               let regex = RegExp.compile "a" "" in
               let result = RegExp.exec regex "bbb" in
-              assert_result result.captures [||];
+              assert_result (RegExp.captures result) [||];
               let result = RegExp.exec regex "bbba" in
-              assert_result result.captures [| "a" |]);
+              assert_result (RegExp.captures result) [| "a" |]);
           test "with i (ignorecase)" (fun () ->
               let regex = RegExp.compile "a" "i" in
               let result = RegExp.exec regex "123bA" in
-              assert_result result.captures [| "A" |];
+              assert_result (RegExp.captures result) [| "A" |];
               let result = RegExp.exec regex "123ba" in
-              assert_result result.captures [| "a" |]);
+              assert_result (RegExp.captures result) [| "a" |]);
           test "with m (multiline)" (fun () ->
               let regex = RegExp.compile "^d" "m" in
               let result = RegExp.exec regex "123bA" in
-              assert_result result.captures [||];
+              assert_result (RegExp.captures result) [||];
               let result = RegExp.exec regex "123bA\n123" in
-              assert_result result.captures [||];
+              assert_result (RegExp.captures result) [||];
               let result = RegExp.exec regex "david" in
-              assert_result result.captures [| "d" |];
+              assert_result (RegExp.captures result) [| "d" |];
               let result = RegExp.exec regex "123bA\ndavid" in
-              assert_result result.captures [| "d" |]);
+              assert_result (RegExp.captures result) [| "d" |]);
           test "with g (global)" (fun () ->
               let regex = RegExp.compile "[0-9]+" "g" in
               let input = "abc00123xyz456_0" in
               let result = RegExp.exec regex input in
-              assert_result result.captures [| "00123" |];
+              assert_result (RegExp.captures result) [| "00123" |];
               let result = RegExp.exec regex input in
-              assert_result result.captures [| "456" |];
+              assert_result (RegExp.captures result) [| "456" |];
               let result = RegExp.exec regex input in
-              assert_result result.captures [| "0" |]);
+              assert_result (RegExp.captures result) [| "0" |]);
           test "with y (sticky)" (fun () ->
               let regex = RegExp.compile "foo" "y" in
               assert_int (RegExp.lastIndex regex) 0;
               let input = "foofoofoo" in
               let result = RegExp.exec regex input in
               assert_int (RegExp.lastIndex regex) 3;
-              assert_result result.captures [| "foo" |];
+              assert_result (RegExp.captures result) [| "foo" |];
               let result = RegExp.exec regex input in
               assert_int (RegExp.lastIndex regex) 6;
-              assert_result result.captures [| "foo" |];
+              assert_result (RegExp.captures result) [| "foo" |];
               let result = RegExp.exec regex input in
               assert_int (RegExp.lastIndex regex) 9;
-              assert_result result.captures [| "foo" |];
+              assert_result (RegExp.captures result) [| "foo" |];
               let result = RegExp.exec regex input in
               assert_int (RegExp.lastIndex regex) 0;
-              assert_result result.captures [||]);
+              assert_result (RegExp.captures result) [||]);
           test "groups" (fun () ->
               let regex = RegExp.compile "(xyz)" "" in
               let input = "xyz yz xyzx xzy" in
               let result = RegExp.exec regex input in
-              assert_result result.captures [| "xyz"; "xyz" |]);
+              assert_result (RegExp.captures result) [| "xyz"; "xyz" |]);
           (* https://github.com/tc39/test262/blob/main/test/built-ins/RegExp/lookBehind/word-boundary.js *)
           test "groups with (?: )" (fun () ->
               let regex = RegExp.compile "(?<=\\b)[d-f]{3}" "" in
               let input = "def" in
               let result = RegExp.exec regex input in
-              assert_result result.captures [| "def" |]);
+              assert_result (RegExp.captures result) [| "def" |]);
           (* test "named groups?" *)
         ] );
     ]

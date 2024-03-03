@@ -64,6 +64,7 @@ let compile re flags =
       raise (Invalid_argument "Compilation failed")
 
 let lastIndex regexp = regexp.lastIndex
+let captures regexp = regexp.captures
 
 (* exec is not a binding to lre_exec but an implementation of `js_regexp_exec` *)
 let exec regexp input =
