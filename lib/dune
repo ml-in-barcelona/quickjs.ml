@@ -4,6 +4,5 @@
    (:standard -w -27))))
 
 (library
- (name RegExp)
- (public_name regexp)
- (libraries libregexp ctypes integers))
+ (public_name quickjs)
+ (libraries quickjs.bindings ctypes integers))

@@ -1,3 +1,5 @@
+open Quickjs
+
 let print_output (output : string array) =
   let len = Array.length output in
   Printf.printf "\noutput\n";

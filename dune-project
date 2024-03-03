@@ -5,7 +5,7 @@
 
 (cram enable)
 
-(name regexp)
+(name quickjs)
 
 (license MIT)
 
@@ -14,15 +14,15 @@
 (authors "David Sancho <dsnxmoreno@gmail.com>")
 
 (source
- (github ml-in-barcelona/regexp))
+ (github ml-in-barcelona/quickjs))
 
 (generate_opam_files true)
 
 (implicit_transitive_deps false)
 
 (package
- (name regexp)
- (synopsis "RegExp library for ReasonML and OCaml, binds to the native JavaScript RegExp from C")
+ (name quickjs)
+ (synopsis "Bindings for QuickJS (a Javascript Engine to be embedded https://bellard.org/quickjs)")
  (depends
   ;; General system dependencies
   (ocaml (>= 5.0.0))

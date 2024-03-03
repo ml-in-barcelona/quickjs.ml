@@ -1,3 +1,5 @@
+open Quickjs
+
 (* let suites = Mt.[
      "captures", (fun _ ->
        let re = [%re "/(\\d+)-(?:(\\d+))?/g"] in

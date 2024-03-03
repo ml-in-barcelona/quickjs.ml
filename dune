@@ -1,8 +1,8 @@
 (dirs lib test quickjs demo)
 
 (library
- (name libregexp)
- (public_name regexp.libregexp)
+ (name bindings)
+ (public_name quickjs.bindings)
  (libraries integers)
  (foreign_archives quickjs/quickjs)
  (ctypes
