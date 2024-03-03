@@ -112,26 +112,40 @@ open Quickjs
 
 let test title fn = Alcotest.test_case title `Quick fn
 
+let assert_result left right =
+  Alcotest.(check (array string)) "match" right left
+
 let () =
   Alcotest.run "RegExp"
     [
       ( "test",
         [
-          test "match" (fun () ->
-              let re = RegExp.compile "foo" in
-              let _int = RegExp.exec "foo" re in
-              (* Alcotest.(check int) "match" 1 int *)
-              assert true);
-          (* test "match" (fun () ->
-              let contentOf tag str =
-                RegExp.compile ("<" ^ tag ^ ">(.*?)<\\/" ^ tag ^ ">") ""
-                |> RegExp.exec str
-                |> function
-                | Some result ->
-                    Js.Nullable.toOption (RegExp.lre_get_capture_count result).(1)
-                | None -> None
-              in
-              contentOf "div" "<div>Hi</div>", Some "Hi"
-              Alcotest.(check string) "match" 1 int); *)
+          test "basic" (fun () ->
+              let regex = RegExp.compile "[0-9]+" "" in
+              let result = RegExp.exec regex "abc123xyz" in
+              assert_result result.captures [| "123" |]);
+          test "running exec with global" (fun () ->
+              let regex = RegExp.compile "[0-9]+" "g" in
+              let input = "abc00123xyz456_0" in
+              let result = RegExp.exec regex input in
+              assert_result result.captures [| "00123" |];
+              let result = RegExp.exec regex input in
+              assert_result result.captures [| "456" |];
+              let result = RegExp.exec regex input in
+              assert_result result.captures [| "0" |]);
+          test "without global" (fun () ->
+              let regex = RegExp.compile "[0-9]+" "" in
+              let result = RegExp.exec regex "abc00123xyz456_0" in
+              assert_result result.captures [| "00123" |];
+              let result = RegExp.exec regex "abc00123xyz456_0" in
+              assert_result result.captures [| "00123" |]);
+          (* test "i" (fun () -> ()) *)
+          (* test "m" (fun () -> ()) *)
+          (* test "s" (fun () -> ()) *)
+          (* test "u" (fun () -> ()) *)
+          (* test "y" (fun () -> ()) *)
+
+          (* test "groups" *)
+          (* test "named groups?" *)
         ] );
     ]

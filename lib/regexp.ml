@@ -1,12 +1,23 @@
-type flags = int
-
 type regex = {
   bc : Unsigned.uint8 Ctypes_static.ptr;
-  flags : flags;
+  flags : int;
   mutable lastIndex : int;
 }
 
 type result = { captures : string array }
+
+let lre_flag_global = 0b01
+let lre_flag_ignorecase = 0b10
+let lre_flag_multiline = 0b100
+let lre_flag_dotall = 0b100
+let lre_flag_unicode = 0b10000
+let lre_flag_sticky = 0b100000
+let has_flag flags flag = flags land flag != 0
+let global flags = has_flag flags lre_flag_global
+let ignorecase flags = has_flag flags lre_flag_ignorecase
+let multiline flags = has_flag flags lre_flag_multiline
+let dotall flags = has_flag flags lre_flag_dotall
+let sticky flags = has_flag flags lre_flag_sticky
 
 let parse_flags flags =
   let rec parse_flags' flags acc =
@@ -14,22 +25,22 @@ let parse_flags flags =
     | [] -> acc
     | 'g' :: rest ->
         (* #define LRE_FLAG_GLOBAL (1 << 0) *)
-        parse_flags' rest (acc lor 0b01)
+        parse_flags' rest (acc lor lre_flag_global)
     | 'i' :: rest ->
         (* #define LRE_FLAG_IGNORECASE (1 << 1) *)
-        parse_flags' rest (acc lor 0b10)
+        parse_flags' rest (acc lor lre_flag_ignorecase)
     | 'm' :: rest ->
         (* #define LRE_FLAG_MULTILINE (1 << 2) *)
-        parse_flags' rest (acc lor 0b100)
+        parse_flags' rest (acc lor lre_flag_multiline)
     | 's' :: rest ->
-        (*    #define LRE_FLAG_DOTALL (1 << 3) *)
-        parse_flags' rest (acc lor 0b100)
+        (* #define LRE_FLAG_DOTALL (1 << 3) *)
+        parse_flags' rest (acc lor lre_flag_dotall)
     | 'u' :: rest ->
         (* #define LRE_FLAG_UNICODE (1 << 4) *)
-        parse_flags' rest (acc lor 0b10000)
+        parse_flags' rest (acc lor lre_flag_unicode)
     | 'y' :: rest ->
-        (*    #define LRE_FLAG_STICKY (1 << 5) *)
-        parse_flags' rest (acc lor 0b100000)
+        (* #define LRE_FLAG_STICKY (1 << 5) *)
+        parse_flags' rest (acc lor lre_flag_sticky)
     | _ :: rest -> parse_flags' rest acc
   in
   parse_flags' (String.to_seq flags |> List.of_seq) 0
@@ -42,20 +53,19 @@ let compile re flags =
   let input_length = String.length re |> Unsigned.Size_t.of_int in
   let flags = parse_flags flags in
   let compiled_byte_code =
-    Libregexp.C.Functions.lre_compile compiled_byte_code_len error_msg
+    Bindings.C.Functions.lre_compile compiled_byte_code_len error_msg
       size_of_error_msg input input_length flags Ctypes.null
   in
   match Ctypes.is_null compiled_byte_code with
+  | false -> { bc = compiled_byte_code; flags; lastIndex = 0 }
   | true ->
       let error = Ctypes.string_from_ptr ~length:64 error_msg in
       print_endline error;
       raise (Invalid_argument "Compilation failed")
-  | false -> { bc = compiled_byte_code; flags = 0; lastIndex = 0 }
 
 (* exec is not a binding to lre_exec but an implementation of `js_regexp_exec` *)
 let exec regexp input =
-  let { bc; _ } = regexp in
-  let capture_count = Libregexp.C.Functions.lre_get_capture_count bc in
+  let capture_count = Bindings.C.Functions.lre_get_capture_count regexp.bc in
   let capture_size = capture_count * 2 in
   let capture = Ctypes.CArray.make (Ctypes.ptr Ctypes.uint8_t) capture_size in
   let start_capture = Ctypes.CArray.start capture in
@@ -69,30 +79,38 @@ let exec regexp input =
       (Ctypes.ptr Ctypes.uint8_t)
       (Ctypes.CArray.start bufp)
   in
-  (* if ((re_flags & (LRE_FLAG_GLOBAL | LRE_FLAG_STICKY)) == 0) {
-         last_index = 0;
-     } *)
-  (* Printf.printf "\nmatching_length %d\n" matching_length; *)
-  let index = 0 in
+
+  let real_flags = Bindings.C.Functions.lre_get_flags regexp.bc in
+
+  Printf.printf "real flags %d\n" real_flags;
+
+  let lastIndex =
+    (* if ((re_flags & (LRE_FLAG_GLOBAL | LRE_FLAG_STICKY)) == 0) {
+           last_index = 0;
+       } *)
+    match global regexp.flags with
+    | true ->
+        print_endline "global and flags are set";
+        regexp.lastIndex
+    | false ->
+        print_endline
+          (Printf.sprintf "flags %d, global: %d" regexp.flags lre_flag_global);
+        print_endline "not global and flags are not set";
+        0
+  in
+
+  (* Printf.printf "lastIndex %d\n" regexp.lastIndex; *)
   (* Return 1 if match, 0 if not match or -1 if error. cindex is the
      starting position of the match and must be such as 0 <= cindex <=
      clen. *)
-  (* if (last_index > str->len) {
-         ret = 2;
-     } else {
-         ret = lre_exec(capture, re_bytecode,
-                        str_buf, last_index, str->len,
-                        shift, ctx);
-     } *)
   let exec_result =
-    Libregexp.C.Functions.lre_exec start_capture bc buffer index matching_length
-      0 Ctypes.null
+    Bindings.C.Functions.lre_exec start_capture regexp.bc buffer lastIndex
+      matching_length 0 Ctypes.null
   in
   (* Printf.printf "\ncapture_count %d\n" capture_count; *)
   match exec_result with
   | 1 ->
       let substrings = Array.make capture_count "" in
-      (* maybe not 0 from the start, previous? *)
       let i = ref 0 in
       while !i < capture_size - 1 do
         let start_ptr = Ctypes.CArray.get capture !i in
