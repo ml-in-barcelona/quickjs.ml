@@ -1,5 +1,6 @@
 type regex = {
   bc : Unsigned.uint8 Ctypes_static.ptr;
+  source : string;
   flags : int;
   mutable lastIndex : int;
 }
@@ -77,13 +78,14 @@ let compile re flags =
       size_of_error_msg input input_length flags Ctypes.null
   in
   match Ctypes.is_null compiled_byte_code with
-  | false -> { bc = compiled_byte_code; flags; lastIndex = 0 }
+  | false -> { bc = compiled_byte_code; flags; lastIndex = 0; source = re }
   | true ->
       let error = Ctypes.string_from_ptr ~length:64 error_msg in
       print_endline error;
       raise (Invalid_argument "Compilation failed")
 
 let index regexp = regexp.lastIndex
+let source regexp = regexp.source
 let input result = result.input
 let setLastIndex regexp lastIndex = regexp.lastIndex <- lastIndex
 let captures regexp = regexp.captures
