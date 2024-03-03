@@ -1,3 +1,6 @@
+(documentation
+ (package quickjs))
+
 (dirs lib test quickjs demo)
 
 (library
