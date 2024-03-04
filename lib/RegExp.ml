@@ -5,7 +5,7 @@ type t = {
   mutable lastIndex : int;
 }
 
-type result = { captures : string array; input : string }
+type result = { captures : string array; input : string; index : int }
 
 (* #define LRE_FLAG_GLOBAL (1 << 0) *)
 let lre_flag_global = 0b01
@@ -84,6 +84,7 @@ let compile re flags =
       print_endline error;
       raise (Invalid_argument "Compilation failed")
 
+let index result = result.index
 let lastIndex regexp = regexp.lastIndex
 let source regexp = regexp.source
 let input result = result.input
@@ -158,11 +159,11 @@ let exec regexp input =
             *) *)
         i := !i + 2
       done;
-      { captures = substrings; input }
+      { captures = substrings; input; index = !i }
   | 0 ->
       (* When there's no matches left, sticky goes to lastIndex 0 *)
       (match sticky regexp with true -> regexp.lastIndex <- 0 | false -> ());
-      { captures = [||]; input }
+      { captures = [||]; input; index = 0 }
   | _ (* -1 *) -> raise (Invalid_argument "Error")
 
 let test regexp input =

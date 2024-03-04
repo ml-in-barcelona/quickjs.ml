@@ -47,3 +47,5 @@ val captures : result -> string array
 (*  *)
 
 val input : result -> string
+val index : result -> int
+(* sets the index at which the next match (RegExp.exec or RegExp.test) will start its search from *)
