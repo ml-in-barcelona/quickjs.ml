@@ -1,7 +1,6 @@
 (lang dune 3.8)
 (using directory-targets 0.1)
 (using ctypes 0.3)
-(using mdx 0.4)
 
 (cram enable)
 
