@@ -138,5 +138,11 @@ let () =
               let input = "abcdef" in
               let result = RegExp.exec regex input in
               assert_result (RegExp.captures result) [| "abc" |]);
+          test "http/s" (fun () ->
+              let pattern = "^[https?]+:\\/\\/((w{3}\\.)?[\\w+]+)\\.[\\w+]+$" in
+              let regex = RegExp.compile pattern "" in
+              assert_bool (RegExp.test regex "https://www.example.com") true;
+              assert_bool (RegExp.test regex "http://example.com") true;
+              assert_bool (RegExp.test regex "https://example") false);
         ] );
     ]

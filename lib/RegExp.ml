@@ -127,7 +127,6 @@ let exec regexp input =
        | _ -> false *)
   let shift = 0 in
 
-  (* Printf.printf "lastIndex %d\n" regexp.lastIndex; *)
   (* Return 1 if match, 0 if not match or -1 if error. cindex is the
      starting position of the match and must be such as 0 <= cindex <=
      clen. *)
@@ -135,7 +134,7 @@ let exec regexp input =
     Bindings.C.Functions.lre_exec start_capture regexp.bc buffer lastIndex
       matching_length shift Ctypes.null
   in
-  (* Printf.printf "\ncapture_count %d\n" capture_count; *)
+
   match exec_result with
   | 1 ->
       let substrings = Array.make capture_count "" in
@@ -148,7 +147,12 @@ let exec regexp input =
         let length = Ctypes.ptr_diff start_ptr end_ptr in
         (* JS_DefinePropertyValue(ctx, obj, JS_ATOM_index, JS_NewInt32(ctx, (capture[0] - str_buf) >> shift), prop_flags) *)
         index := start_index;
-        let substring = String.sub input start_index length in
+        let substring =
+          match String.sub input start_index length with
+          | sub -> sub
+          (* goto fail which foes JS_FreeValue str_val means there's a null in the result *)
+          | exception _ -> ""
+        in
         substrings.(!i / 2) <- substring;
         (* Update the lastIndex *)
         regexp.lastIndex <- start_index + length;
