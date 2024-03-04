@@ -1,7 +1,4 @@
-project_name = regexp
-
 DUNE = opam exec -- dune
-opam_file = $(project_name).opam
 
 .PHONY: help
 help: ## Print this help message
@@ -39,9 +36,6 @@ test-watch: ## Run the unit tests in watch mode
 test-promote: ## Updates snapshots and promotes it to correct
 	$(DUNE) build @runtest --auto-promote
 
-.PHONY: deps
-deps: $(opam_file) ## Alias to update the opam file and install the needed deps
-
 .PHONY: format
 format: ## Format the codebase with ocamlformat
 	$(DUNE) build @fmt --auto-promote
@@ -64,18 +58,6 @@ install: ## Install dependencies
 
 .PHONY: init
 init: setup-githooks create-switch install ## Create a local dev enviroment
-
-.PHONY: ppx-test
-ppx-test: ## Run ppx tests
-	$(DUNE) runtest ppx
-
-.PHONY: ppx-test-watch
-ppx-test-watch: ## Run ppx tests in watch mode
-	$(DUNE) runtest ppx --watch
-
-.PHONY: lib-test
-lib-test: ## Run library tests
-	$(DUNE) exec test/test.exe
 
 .PHONY: demo
 demo: ## Run demo executable
