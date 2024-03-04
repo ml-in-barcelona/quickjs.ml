@@ -31,7 +31,6 @@ build: [
     jobs
     "@install"
     "@runtest" {with-test}
-    "@doc" {with-doc}
+    "@new-doc" {with-doc}
   ]
 ]
-dev-repo: "git+https://github.com/ml-in-barcelona/quickjs.ml.git"
