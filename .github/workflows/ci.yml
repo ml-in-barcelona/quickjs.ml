@@ -78,7 +78,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         with:
           target_branch: gh-pages
-          build_dir: _build/default/_doc_new/html/docs/local/quickjs
+          build_dir: _build/default/_doc_new/html
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
