@@ -1,7 +1,8 @@
-(documentation
- (package quickjs))
+(dirs lib test quickjs demo docs)
 
-(dirs lib test quickjs demo)
+(documentation
+ (package quickjs)
+ (mld_files index))
 
 (library
  (name bindings)

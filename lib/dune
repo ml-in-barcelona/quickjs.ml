@@ -5,4 +5,4 @@
 
 (library
  (public_name quickjs)
- (libraries bindings ctypes integers))
+ (libraries quickjs.bindings ctypes integers))

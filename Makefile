@@ -99,4 +99,4 @@ documentation-watch: ## Generate odoc documentation
 
 .PHONY: documentation-serve
 documentation-serve: documentation ## Open odoc documentation with default web browser
-	open _build/default/_doc/_html/index.html
+	open _build/default/_doc_new/html/docs/local/quickjs/index.html
