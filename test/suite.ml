@@ -17,6 +17,14 @@ let () =
     [
       ( "test",
         [
+          test "compile ko" (fun () ->
+              match RegExp.compile "[d-f" "" with
+              | _regexp -> Alcotest.fail "This regex should fail to compile"
+              | exception Invalid_argument error ->
+                  (* TODO: fix error messages (c end string lol) *)
+                  assert_string error
+                    "Compilation failed unexpected \
+                     end\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000");
           test "flags" (fun () ->
               let regex = RegExp.compile "\\d" "" in
               assert_string (RegExp.flags regex) "";
@@ -88,6 +96,14 @@ let () =
               let result = RegExp.exec regex input in
               assert_int (RegExp.lastIndex regex) 0;
               assert_result (RegExp.captures result) [||]);
+          test "sticky vs global" (fun () ->
+              let input = "abc xyz abc" in
+              let sticky = RegExp.compile "abc" "y" in
+              let global = RegExp.compile "abc" "g" in
+              assert_bool (RegExp.test global input) true;
+              assert_bool (RegExp.test global input) true;
+              assert_bool (RegExp.test sticky input) true;
+              assert_bool (RegExp.test sticky input) false);
           test "groups" (fun () ->
               let regex = RegExp.compile "(xyz)" "" in
               let input = "xyz yz xyzx xzy" in
@@ -116,6 +132,11 @@ let () =
               let input = "def" in
               let result = RegExp.exec regex input in
               assert_result (RegExp.captures result) [| "def" |]);
-          (* test "named groups?" *)
+          (* https://github.com/tc39/test262/blob/main/test/built-ins/RegExp/lookBehind/negative.js#L21C22-L21C28 *)
+          test "negative" (fun () ->
+              let regex = RegExp.compile "(?<!abc)\\w\\w\\w" "" in
+              let input = "abcdef" in
+              let result = RegExp.exec regex input in
+              assert_result (RegExp.captures result) [| "abc" |]);
         ] );
     ]
