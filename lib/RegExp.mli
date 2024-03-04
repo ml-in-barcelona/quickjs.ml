@@ -32,7 +32,7 @@ val sticky : t -> bool
 (* returns a bool indicating whether the sticky (y) flag is set *)
 
 val unicode : t -> bool
-(* returns a bool indicating whether the unicode (u) flag is set *)
+(* returns a bool indicating whether the unicode (u ) flag is set *)
 
 val source : t -> string
 (* returns the regexp pattern as a string *)
@@ -44,8 +44,10 @@ val exec : t -> string -> result
 (* executes a search on a given string using the given RegExp.t *)
 
 val captures : result -> string array
-(*  *)
+(* an array of the match and captures *)
 
 val input : result -> string
+(* the original input string *)
+
 val index : result -> int
 (* sets the index at which the next match (RegExp.exec or RegExp.test) will start its search from *)
