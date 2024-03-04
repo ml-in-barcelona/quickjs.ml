@@ -4,9 +4,9 @@
 
 The project exposes two libraries:
 
-- **quickjs.bindings** with the QuickJS C API.
+- **`quickjs.bindings`** with the QuickJS C API.
 
-- **quickjs** which exposes a polished API on top of `quickjs.bindings` with the same shape as the JavaScript API.
+- **`quickjs`** which exposes a polished API on top of `quickjs.bindings` with the same shape as the JavaScript API.
 
 ### Motivation
 
@@ -16,6 +16,6 @@ The purpose of this project is to provide the same behaviour as the JavaScript e
 
 [API reference](https://ml-in-barcelona.github.io/quickjs.ml/quickjs/index.html)
 
-## Status
+### Status
 
 This is a work in progress, and currently only includes bindings to `RegExp` (binded to `libregexp`).

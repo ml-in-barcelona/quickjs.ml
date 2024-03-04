@@ -3,6 +3,8 @@ module Types = Types_generated
 module Functions (F : Ctypes.FOREIGN) = struct
   open F
 
+  (* RegExp *)
+
   let lre_compile =
     F.foreign "lre_compile"
       (* int *plen *)
