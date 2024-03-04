@@ -1,13 +1,20 @@
 # quickjs
 
-Bindings to the [QuickJS](https://bellard.org/quickjs) JavaScript Engine (using [ctypes](https://opam.ocaml.org/packages/ctypes)).
+**quickjs.ml** is a set of OCaml bindings for [QuickJS](https://bellard.org/quickjs). QuickJS is a small and embeddable JavaScript engine. It supports the ES2020 specification including modules, asynchronous generators, proxies and BigInt.
 
-**quickjs.ml** library exposes the API of the QuickJS C library with the same shape as the JavaScript API.
+The project exposes two libraries:
+
+- **quickjs.bindings** with the QuickJS C API.
+
+- **quickjs** which exposes a polished API on top of `quickjs.bindings` with the same shape as the JavaScript API.
+
+### Motivation
+
+The purpose of this project is to provide the same behaviour as the JavaScript engines from browsers ([SpiderMonkey](https://spidermonkey.dev), [JavaScriptCore](https://developer.apple.com/documentation/javascriptcore), [ChakraCore](https://github.com/chakra-core/ChakraCore), [v8](https://v8.dev/)) into OCaml. So code that runs in the browser (via [Melange](https://melange.re)) can be run in native with the same results.
 
 ### Documentation
 
 [API reference](https://ml-in-barcelona.github.io/quickjs.ml/quickjs/index.html)
-
 
 ## Status
 
