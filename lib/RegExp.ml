@@ -1,4 +1,4 @@
-type regex = {
+type t = {
   bc : Unsigned.uint8 Ctypes_static.ptr;
   source : string;
   flags : int;
@@ -7,41 +7,40 @@ type regex = {
 
 type result = { captures : string array; input : string }
 
+(* #define LRE_FLAG_GLOBAL (1 << 0) *)
 let lre_flag_global = 0b01
+
+(* #define LRE_FLAG_IGNORECASE (1 << 1) *)
 let lre_flag_ignorecase = 0b10
+
+(* #define LRE_FLAG_MULTILINE (1 << 2) *)
 let lre_flag_multiline = 0b100
+
+(* #define LRE_FLAG_DOTALL (1 << 3) *)
 let lre_flag_dotall = 0b1000
+
+(* #define LRE_FLAG_UNICODE (1 << 4) *)
 let lre_flag_unicode = 0b10000
+
+(* #define LRE_FLAG_STICKY (1 << 5) *)
 let lre_flag_sticky = 0b100000
 let has_flag flags flag = flags land flag != 0
-let global flags = has_flag flags lre_flag_global
-let ignorecase flags = has_flag flags lre_flag_ignorecase
-let multiline flags = has_flag flags lre_flag_multiline
-let dotall flags = has_flag flags lre_flag_dotall
-let sticky flags = has_flag flags lre_flag_sticky
+let global regexp = has_flag regexp.flags lre_flag_global
+let ignorecase regexp = has_flag regexp.flags lre_flag_ignorecase
+let multiline regexp = has_flag regexp.flags lre_flag_multiline
+let dotall regexp = has_flag regexp.flags lre_flag_dotall
+let sticky regexp = has_flag regexp.flags lre_flag_sticky
 
 let parse_flags flags =
   let rec parse_flags' flags acc =
     match flags with
     | [] -> acc
-    | 'g' :: rest ->
-        (* #define LRE_FLAG_GLOBAL (1 << 0) *)
-        parse_flags' rest (acc lor lre_flag_global)
-    | 'i' :: rest ->
-        (* #define LRE_FLAG_IGNORECASE (1 << 1) *)
-        parse_flags' rest (acc lor lre_flag_ignorecase)
-    | 'm' :: rest ->
-        (* #define LRE_FLAG_MULTILINE (1 << 2) *)
-        parse_flags' rest (acc lor lre_flag_multiline)
-    | 's' :: rest ->
-        (* #define LRE_FLAG_DOTALL (1 << 3) *)
-        parse_flags' rest (acc lor lre_flag_dotall)
-    | 'u' :: rest ->
-        (* #define LRE_FLAG_UNICODE (1 << 4) *)
-        parse_flags' rest (acc lor lre_flag_unicode)
-    | 'y' :: rest ->
-        (* #define LRE_FLAG_STICKY (1 << 5) *)
-        parse_flags' rest (acc lor lre_flag_sticky)
+    | 'g' :: rest -> parse_flags' rest (acc lor lre_flag_global)
+    | 'i' :: rest -> parse_flags' rest (acc lor lre_flag_ignorecase)
+    | 'm' :: rest -> parse_flags' rest (acc lor lre_flag_multiline)
+    | 's' :: rest -> parse_flags' rest (acc lor lre_flag_dotall)
+    | 'u' :: rest -> parse_flags' rest (acc lor lre_flag_unicode)
+    | 'y' :: rest -> parse_flags' rest (acc lor lre_flag_sticky)
     | _ :: rest -> parse_flags' rest acc
   in
   parse_flags' (String.to_seq flags |> List.of_seq) 0
@@ -84,7 +83,7 @@ let compile re flags =
       print_endline error;
       raise (Invalid_argument "Compilation failed")
 
-let index regexp = regexp.lastIndex
+let lastIndex regexp = regexp.lastIndex
 let source regexp = regexp.source
 let input result = result.input
 let setLastIndex regexp lastIndex = regexp.lastIndex <- lastIndex
@@ -116,7 +115,7 @@ let exec regexp input =
     (* if ((re_flags & (LRE_FLAG_GLOBAL | LRE_FLAG_STICKY)) == 0) {
            last_index = 0;
        } *)
-    match global regexp.flags || sticky regexp.flags with
+    match global regexp || sticky regexp with
     | true -> regexp.lastIndex
     | false -> 0
   in
@@ -163,9 +162,7 @@ let exec regexp input =
       { captures = substrings; input }
   | 0 ->
       (* When there's no matches left, sticky goes to lastIndex 0 *)
-      (match sticky regexp.flags with
-      | true -> regexp.lastIndex <- 0
-      | false -> ());
+      (match sticky regexp with true -> regexp.lastIndex <- 0 | false -> ());
       { captures = [||]; input }
   | _ (* -1 *) -> raise (Invalid_argument "Error")
 
