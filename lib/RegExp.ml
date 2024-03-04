@@ -108,10 +108,8 @@ let exec regexp input =
       (Ctypes.CArray.start bufp)
   in
 
-  let real_flags = Bindings.C.Functions.lre_get_flags regexp.bc in
-
-  Printf.printf "real flags %d\n" real_flags;
-
+  (* let real_flags = Bindings.C.Functions.lre_get_flags regexp.bc in *)
+  (* Printf.printf "real flags %d\n" real_flags; *)
   let lastIndex =
     (* if ((re_flags & (LRE_FLAG_GLOBAL | LRE_FLAG_STICKY)) == 0) {
            last_index = 0;
