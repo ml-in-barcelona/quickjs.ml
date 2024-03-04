@@ -81,8 +81,7 @@ let compile re flags =
   | false -> { bc = compiled_byte_code; flags; lastIndex = 0; source = re }
   | true ->
       let error = Ctypes.string_from_ptr ~length:64 error_msg in
-      print_endline error;
-      raise (Invalid_argument "Compilation failed")
+      raise (Invalid_argument (Printf.sprintf "Compilation failed %s" error))
 
 let index result = result.index
 let lastIndex regexp = regexp.lastIndex
@@ -109,8 +108,6 @@ let exec regexp input =
       (Ctypes.CArray.start bufp)
   in
 
-  (* let real_flags = Bindings.C.Functions.lre_get_flags regexp.bc in *)
-  (* Printf.printf "real flags %d\n" real_flags; *)
   let lastIndex =
     (* if ((re_flags & (LRE_FLAG_GLOBAL | LRE_FLAG_STICKY)) == 0) {
            last_index = 0;
@@ -120,8 +117,7 @@ let exec regexp input =
     | false -> 0
   in
 
-  (* shift = str->is_wide_char; *)
-  (* Possible solution: (install uutf)
+  (* TODO: Support `str->is_wide_char`. Possible solution: (install uutf)
        open Uchar
 
      let is_wide_char (c : char) : bool =
