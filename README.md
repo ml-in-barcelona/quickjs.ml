@@ -14,7 +14,7 @@ The purpose of this project is to provide the same behaviour as the JavaScript e
 
 ### Documentation
 
-[API reference](https://ml-in-barcelona.github.io/quickjs.ml/quickjs/index.html)
+[API reference](https://ml-in-barcelona.github.io/quickjs.ml/docs/local/quickjs/index.html)
 
 ### Status
 
