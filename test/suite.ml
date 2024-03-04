@@ -93,6 +93,23 @@ let () =
               let input = "xyz yz xyzx xzy" in
               let result = RegExp.exec regex input in
               assert_result (RegExp.captures result) [| "xyz"; "xyz" |]);
+          test "index" (fun () ->
+              let regex = RegExp.compile "World" "" in
+              let input = "Hello World" in
+              let result = RegExp.exec regex input in
+              assert_int (RegExp.index result) 6);
+          test "lastIndex and index" (fun () ->
+              let regex = RegExp.compile "hello" "g" in
+              let input = "hello world hello" in
+              let result = RegExp.exec regex input in
+              assert_int (RegExp.index result) 0;
+              assert_int (RegExp.lastIndex regex) 5;
+              let result = RegExp.exec regex input in
+              assert_int (RegExp.index result) 12;
+              assert_int (RegExp.lastIndex regex) 17;
+              let result = RegExp.exec regex input in
+              assert_int (RegExp.index result) 0;
+              assert_int (RegExp.lastIndex regex) 0);
           (* https://github.com/tc39/test262/blob/main/test/built-ins/RegExp/lookBehind/word-boundary.js *)
           test "groups with (?: )" (fun () ->
               let regex = RegExp.compile "(?<=\\b)[d-f]{3}" "" in

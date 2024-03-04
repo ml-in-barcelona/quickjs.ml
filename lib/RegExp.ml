@@ -120,26 +120,38 @@ let exec regexp input =
     | false -> 0
   in
 
+  (* shift = str->is_wide_char; *)
+  (* Possible solution: (install uutf)
+       open Uchar
+
+     let is_wide_char (c : char) : bool =
+       let uchar = Uchar.of_char c in
+       match uchar with
+       | `Uchar uchar -> Uucp.Break.tty_width (Uucp.Break.tty_properties uchar) = 2
+       | _ -> false *)
+  let shift = 0 in
+
   (* Printf.printf "lastIndex %d\n" regexp.lastIndex; *)
   (* Return 1 if match, 0 if not match or -1 if error. cindex is the
      starting position of the match and must be such as 0 <= cindex <=
      clen. *)
   let exec_result =
     Bindings.C.Functions.lre_exec start_capture regexp.bc buffer lastIndex
-      matching_length 0 Ctypes.null
+      matching_length shift Ctypes.null
   in
   (* Printf.printf "\ncapture_count %d\n" capture_count; *)
   match exec_result with
   | 1 ->
       let substrings = Array.make capture_count "" in
       let i = ref 0 in
+      let index = ref 0 in
       while !i < capture_size - 1 do
         let start_ptr = Ctypes.CArray.get capture !i in
         let end_ptr = Ctypes.CArray.get capture (!i + 1) in
         let start_index = Ctypes.ptr_diff buffer start_ptr in
         let length = Ctypes.ptr_diff start_ptr end_ptr in
-        (* print_endline (Printf.sprintf "start_index: %d" start_index); *)
-        (* print_endline (Printf.sprintf "len: %d" length); *)
+        (* JS_DefinePropertyValue(ctx, obj, JS_ATOM_index, JS_NewInt32(ctx, (capture[0] - str_buf) >> shift), prop_flags) *)
+        index := start_index;
         let substring = String.sub input start_index length in
         substrings.(!i / 2) <- substring;
         (* Update the lastIndex *)
@@ -159,10 +171,12 @@ let exec regexp input =
             *) *)
         i := !i + 2
       done;
-      { captures = substrings; input; index = !i }
+      { captures = substrings; input; index = !index }
   | 0 ->
-      (* When there's no matches left, sticky goes to lastIndex 0 *)
-      (match sticky regexp with true -> regexp.lastIndex <- 0 | false -> ());
+      (* When there's no matches left, lastIndex goes back to 0 *)
+      (match sticky regexp || global regexp with
+      | true -> regexp.lastIndex <- 0
+      | false -> ());
       { captures = [||]; input; index = 0 }
   | _ (* -1 *) -> raise (Invalid_argument "Error")
 
