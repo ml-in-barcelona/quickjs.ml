@@ -30,6 +30,7 @@ let ignorecase regexp = has_flag regexp.flags lre_flag_ignorecase
 let multiline regexp = has_flag regexp.flags lre_flag_multiline
 let dotall regexp = has_flag regexp.flags lre_flag_dotall
 let sticky regexp = has_flag regexp.flags lre_flag_sticky
+let unicode regexp = has_flag regexp.flags lre_flag_unicode
 
 let parse_flags flags =
   let rec parse_flags' flags acc =

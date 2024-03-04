@@ -31,6 +31,9 @@ val dotall : t -> bool
 val sticky : t -> bool
 (* returns a bool indicating whether the sticky (y) flag is set *)
 
+val unicode : t -> bool
+(* returns a bool indicating whether the unicode (u) flag is set *)
+
 val source : t -> string
 (* returns the regexp pattern as a string *)
 
