@@ -10,7 +10,6 @@ bug-reports: "https://github.com/ml-in-barcelona/quickjs.ml/issues"
 depends: [
   "dune" {>= "3.8"}
   "ocaml" {>= "5.0.0"}
-  "reason" {>= "3.10.0"}
   "integers"
   "ctypes"
   "alcotest" {with-test}

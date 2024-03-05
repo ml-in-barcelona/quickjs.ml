@@ -25,7 +25,6 @@
  (depends
   ;; General system dependencies
   (ocaml (>= 5.0.0))
-  (reason (>= 3.10.0))
   integers
   ctypes
 
