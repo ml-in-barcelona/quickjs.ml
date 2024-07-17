@@ -5,7 +5,13 @@ type t = {
   mutable lastIndex : int;
 }
 
-type matchResult = { captures : string array; input : string; index : int }
+type matchResult = {
+  captures : string array;
+  input : string;
+  index : int;
+  groups : string list;
+}
+
 type result = (matchResult, string) Stdlib.result
 
 (* #define LRE_FLAG_GLOBAL (1 << 0) *)
@@ -73,6 +79,8 @@ let strlen ptr =
     if c = char_of_int 0 then len else aux (Ctypes.( +@ ) ptr 1) (len + 1)
   in
   aux ptr 0
+
+let string_from_ptr ptr = Ctypes.string_from_ptr ~length:(strlen ptr) ptr
 
 let compile ~flags re =
   let compiled_byte_code_len = Ctypes.allocate Ctypes.int 0 in
@@ -156,10 +164,13 @@ let exec regexp input =
 
   match exec_result with
   | 1 ->
-      let _group_name_ptr = Bindings.C.Functions.lre_get_groupnames regexp.bc in
       let substrings = Array.make capture_count "" in
       let i = ref 0 in
       let index = ref 0 in
+      let groups = ref [] in
+      let group_name_ptr =
+        ref (Bindings.C.Functions.lre_get_groupnames regexp.bc)
+      in
       while !i < capture_size - 1 do
         let start_ptr = Ctypes.CArray.get capture !i in
         let end_ptr = Ctypes.CArray.get capture (!i + 1) in
@@ -173,33 +184,28 @@ let exec regexp input =
           (* goto fail which foes JS_FreeValue str_val means there's a null in the result *)
           | exception _ -> ""
         in
+        (* Store the captured substring *)
         substrings.(!i / 2) <- substring;
         (* Update the lastIndex *)
         regexp.lastIndex <- start_index + length;
-        (* Check if lre_get_groupnames are enabled and
-           if (group_name_ptr && i > 0) {
-                 if (*group_name_ptr) {
-                     if (JS_DefinePropertyValueStr(ctx, groups, group_name_ptr,
-                                                   JS_DupValue(ctx, val),
-                                                   prop_flags) < 0) {
-                         JS_FreeValue(ctx, val);
-                         goto fail;
-                     }
-                 }
-                 group_name_ptr += strlen(group_name_ptr) + 1;
-             }
-            *) *)
-        (* if !i > 0 then
-           !group_name_ptr := !group_name_ptr + String.length !group_name_ptr + 1; *)
+
+        if !i > 0 then (
+          (* store the group name *)
+          groups := string_from_ptr !group_name_ptr :: !groups;
+          (* group_name_ptr += strlen(group_name_ptr) + 1; *)
+          group_name_ptr :=
+            Ctypes.( +@ ) !group_name_ptr (strlen !group_name_ptr + 1));
+
+        (* Incement the index *)
         i := !i + 2
       done;
-      Ok { captures = substrings; input; index = !index }
+      Ok { captures = substrings; input; index = !index; groups = !groups }
   | 0 ->
       (* When there's no matches left, lastIndex goes back to 0 *)
       (match sticky regexp || global regexp with
       | true -> regexp.lastIndex <- 0
       | false -> ());
-      Ok { captures = [||]; input; index = 0 }
+      Ok { captures = [||]; input; index = 0; groups = [] }
   | _ (* -1 *) -> Error "Error"
 
 let test regexp input =

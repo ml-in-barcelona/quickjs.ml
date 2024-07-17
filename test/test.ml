@@ -115,7 +115,7 @@ let () =
               let result = RegExp.exec regex input in
               assert_result (RegExp.captures result) [| "xyz"; "xyz" |]);
           test "named groups" (fun () ->
-              (* TODO: Support named groups in melange.js and return lre_get_groupnames in the result*)
+              (* TODO: Support named groups in melange.js and make them available within the result *)
               let regex =
                 regexp_compile "(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})"
                   ~flags:""
