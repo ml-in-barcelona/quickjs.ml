@@ -4,5 +4,5 @@
    (:standard -w -27))))
 
 (test
- (name suite)
+ (name test)
  (libraries alcotest quickjs))
