@@ -8,8 +8,11 @@ let print_output (output : string array) =
   done
 
 let () =
-  let re = RegExp.compile "\\d" "g" in
-  let result = RegExp.exec re "a2b3c4d5e6f7g8h9i" in
-  print_output (RegExp.captures result);
-  let result = RegExp.exec re "a2b3c4d5e6f7g8h9i" in
-  print_output (RegExp.captures result)
+  let re =
+    RegExp.compile "(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})" ~flags:"g"
+  in
+  match re with
+  | Ok re ->
+      let result = RegExp.exec re "Today's date is 2024-07-17" in
+      print_output (RegExp.captures result)
+  | Error (_, error) -> Printf.printf "Error: %s" error
