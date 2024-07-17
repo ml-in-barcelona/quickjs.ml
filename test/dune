@@ -1,8 +1,3 @@
-(env
- (dev
-  (flags
-   (:standard -w -27))))
-
 (test
  (name test)
  (libraries alcotest quickjs))

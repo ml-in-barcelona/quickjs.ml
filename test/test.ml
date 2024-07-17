@@ -114,14 +114,16 @@ let () =
               let input = "xyz yz xyzx xzy" in
               let result = RegExp.exec regex input in
               assert_result (RegExp.captures result) [| "xyz"; "xyz" |]);
-          (* test "named groups" (fun () ->
+          test "named groups" (fun () ->
+              (* TODO: Support named groups in melange.js and return lre_get_groupnames in the result*)
               let regex =
                 regexp_compile "(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})"
                   ~flags:""
               in
               let input = "Today's date is 2024-07-17" in
               let result = RegExp.exec regex input in
-              assert_result (RegExp.captures result) [| "xyz"; "xyz" |]); *)
+              assert_result (RegExp.captures result)
+                [| "2024-07-17"; "2024"; "07"; "17" |]);
           test "index" (fun () ->
               let regex = regexp_compile "World" ~flags:"" in
               let input = "Hello World" in
