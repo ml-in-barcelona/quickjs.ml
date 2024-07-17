@@ -46,6 +46,11 @@ module Functions (F : Ctypes.FOREIGN) = struct
       (* const uint8_t *bc_buf *)
       (Ctypes.ptr Ctypes.uint8_t @-> F.returning Ctypes.int)
 
+  let lre_get_groupnames =
+    F.foreign "lre_get_groupnames"
+      (* const uint8_t *bc_buf *)
+      (Ctypes.ptr Ctypes.uint8_t @-> F.returning (Ctypes.ptr Ctypes.char))
+
   let lre_get_flags =
     F.foreign "lre_get_flags"
       (* const uint8_t *bc_buf *)
