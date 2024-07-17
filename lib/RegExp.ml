@@ -5,7 +5,8 @@ type t = {
   mutable lastIndex : int;
 }
 
-type result = { captures : string array; input : string; index : int }
+type matchResult = { captures : string array; input : string; index : int }
+type result = (matchResult, string) Stdlib.result
 
 (* #define LRE_FLAG_GLOBAL (1 << 0) *)
 let lre_flag_global = 0b01
@@ -66,7 +67,14 @@ let flags_to_string flags =
   in
   flags_to_string' flags ""
 
-let compile re flags =
+let strlen ptr =
+  let rec aux ptr len =
+    let c = Ctypes.( !@ ) ptr in
+    if c = char_of_int 0 then len else aux (Ctypes.( +@ ) ptr 1) (len + 1)
+  in
+  aux ptr 0
+
+let compile ~flags re =
   let compiled_byte_code_len = Ctypes.allocate Ctypes.int 0 in
   let size_of_error_msg = 64 in
   let error_msg = Ctypes.allocate_n ~count:size_of_error_msg Ctypes.char in
@@ -78,17 +86,29 @@ let compile re flags =
       size_of_error_msg input input_length flags Ctypes.null
   in
   match Ctypes.is_null compiled_byte_code with
-  | false -> { bc = compiled_byte_code; flags; lastIndex = 0; source = re }
+  | false -> Ok { bc = compiled_byte_code; flags; lastIndex = 0; source = re }
   | true ->
-      let error = Ctypes.string_from_ptr ~length:64 error_msg in
-      raise (Invalid_argument (Printf.sprintf "Compilation failed %s" error))
+      let length = strlen error_msg in
+      let error = Ctypes.string_from_ptr ~length error_msg in
+      Error
+        ( (match error with
+          | "unexpected end" -> `Unexpected_end
+          | "malformed unicode char" -> `Malformed_unicode_char
+          | "nothing to repeat" -> `Nothing_to_repeat
+          | "invalid escape sequence in regular expression" ->
+              `Invalid_escape_sequence
+          | unknown -> `Unknown unknown),
+          error )
 
-let index result = result.index
+let index result = match result with Ok result -> result.index | Error _ -> 0
 let lastIndex regexp = regexp.lastIndex
 let source regexp = regexp.source
-let input result = result.input
+let input result = match result with Ok result -> result.input | Error _ -> ""
 let setLastIndex regexp lastIndex = regexp.lastIndex <- lastIndex
-let captures regexp = regexp.captures
+
+let captures result =
+  match result with Ok result -> result.captures | Error _ -> [||]
+
 let flags regexp = flags_to_string regexp.flags
 
 (* exec is not a binding to lre_exec but an implementation of `js_regexp_exec` *)
@@ -98,7 +118,6 @@ let exec regexp input =
   let capture = Ctypes.CArray.make (Ctypes.ptr Ctypes.uint8_t) capture_size in
   let start_capture = Ctypes.CArray.start capture in
   let matching_length = String.length input in
-  let _matching = Ctypes.ocaml_string_start input in
   let bufp =
     Ctypes.CArray.of_list Ctypes.char (input |> String.to_seq |> List.of_seq)
   in
@@ -137,6 +156,7 @@ let exec regexp input =
 
   match exec_result with
   | 1 ->
+      let _group_name_ptr = Bindings.C.Functions.lre_get_groupnames regexp.bc in
       let substrings = Array.make capture_count "" in
       let i = ref 0 in
       let index = ref 0 in
@@ -169,17 +189,21 @@ let exec regexp input =
                  group_name_ptr += strlen(group_name_ptr) + 1;
              }
             *) *)
+        (* if !i > 0 then
+           !group_name_ptr := !group_name_ptr + String.length !group_name_ptr + 1; *)
         i := !i + 2
       done;
-      { captures = substrings; input; index = !index }
+      Ok { captures = substrings; input; index = !index }
   | 0 ->
       (* When there's no matches left, lastIndex goes back to 0 *)
       (match sticky regexp || global regexp with
       | true -> regexp.lastIndex <- 0
       | false -> ());
-      { captures = [||]; input; index = 0 }
-  | _ (* -1 *) -> raise (Invalid_argument "Error")
+      Ok { captures = [||]; input; index = 0 }
+  | _ (* -1 *) -> Error "Error"
 
 let test regexp input =
   let result = exec regexp input in
-  Array.length result.captures > 0
+  match result with
+  | Ok result -> Array.length result.captures > 0
+  | Error _ -> false

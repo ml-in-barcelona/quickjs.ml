@@ -4,7 +4,17 @@ type t
 type result
 (** The result of a executing a RegExp on a string *)
 
-val compile : string -> string -> t
+val compile :
+  flags:string ->
+  string ->
+  ( t,
+    [ `Unexpected_end
+    | `Malformed_unicode_char
+    | `Invalid_escape_sequence
+    | `Nothing_to_repeat
+    | `Unknown of string ]
+    * string )
+  Stdlib.result
 (** Constructs a RegExp.t from a string describing a regex and their flags *)
 
 val lastIndex : t -> int
