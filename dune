@@ -28,7 +28,10 @@
 
 (subdir
  quickjs
- (copy_files ../shims.c)
+ (copy_files ../shims.c))
+
+(subdir
+ quickjs
  (foreign_library
   (archive_name quickjs)
   (language c)

@@ -195,9 +195,7 @@ let exec regexp input =
             (*
               if (group_name_ptr && i > 0) {
                 if (\*group_name_ptr) {
-                    if (JS_DefinePropertyValueStr(ctx, groups, group_name_ptr,
-                                                  JS_DupValue(ctx, val),
-                                                  prop_flags) < 0) {
+                    if (JS_DefinePropertyValueStr(ctx, groups, group_name_ptr, JS_DupValue(ctx, val), prop_flags) < 0) {
                         JS_FreeValue(ctx, val);
                         goto fail;
                     }
