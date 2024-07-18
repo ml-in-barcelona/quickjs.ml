@@ -1,5 +1,10 @@
 # Changes
 
+## 0.1.2
+
+- Support for named groups
+- Change `RegExp.exec` interface to return `result`
+
 ## 0.1.1
 
 Bug fix for RegExp backtracking when not find a match
