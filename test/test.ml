@@ -1,4 +1,4 @@
-open Quickjs
+module RegExp = Quickjs.RegExp
 
 let test title fn = Alcotest.test_case title `Quick fn
 
