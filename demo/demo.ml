@@ -1,4 +1,4 @@
-open Quickjs
+module Regex = Quickjs.RegExp
 
 let print_output (output : string array) =
   let len = Array.length output in
