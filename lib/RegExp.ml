@@ -189,31 +189,28 @@ let exec regexp input =
         (* Update the lastIndex *)
         regexp.lastIndex <- start_index + length;
 
-        match !group_name_ptr with
-        | None -> ()
-        | Some pointer ->
+        (* if (\*group_name_ptr) { *)
+        (match !group_name_ptr with
+        (* if (group_name_ptr && i > 0) { *)
+        | Some pointer when !i > 0 ->
             (*
-              if (group_name_ptr && i > 0) {
-                if (\*group_name_ptr) {
-                    if (JS_DefinePropertyValueStr(ctx, groups, group_name_ptr, JS_DupValue(ctx, val), prop_flags) < 0) {
-                        JS_FreeValue(ctx, val);
-                        goto fail;
-                    }
-                }
+              if (JS_DefinePropertyValueStr(ctx, groups, group_name_ptr, JS_DupValue(ctx, val), prop_flags) < 0) {
+                  JS_FreeValue(ctx, val);
+                  goto fail;
+              }
             *)
-            if !i > 0 then (
-              (* store the group name *)
-              let current_group_name = string_from_ptr pointer in
-              groups := current_group_name :: !groups;
-              (* group_name_ptr += strlen(group_name_ptr) + 1; *)
-              let next_group_name_ptr =
-                Ctypes.( +@ ) pointer (strlen pointer + 1)
-              in
-              if Ctypes.is_null next_group_name_ptr then group_name_ptr := None
-              else group_name_ptr := Some next_group_name_ptr);
-
-            (* Incement the index *)
-            i := !i + 2
+            (* store the group name *)
+            let current_group_name = string_from_ptr pointer in
+            groups := current_group_name :: !groups;
+            (* group_name_ptr += strlen(group_name_ptr) + 1; *)
+            let next_group_name_ptr =
+              Ctypes.( +@ ) pointer (strlen pointer + 1)
+            in
+            if Ctypes.is_null next_group_name_ptr then group_name_ptr := None
+            else group_name_ptr := Some next_group_name_ptr
+        | None | Some _ -> ());
+        (* Incement the index *)
+        i := !i + 2
       done;
       Ok { captures = substrings; input; index = !index; groups = !groups }
   | 0 ->
