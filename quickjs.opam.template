@@ -1,3 +1,4 @@
+# The template is needed since we want to add "@new-doc" into the build command
 build: [
   ["dune" "subst"] {dev}
   [
