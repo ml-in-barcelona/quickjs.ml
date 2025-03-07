@@ -1,51 +1,66 @@
-This is the contribute.md of our project. Great to have you here. Here are a few ways you can help make this project better!
+# How to contribute to quickjs.ml
 
-# Contribute.md
+Great to have you here. Here are a few ways you can help make this project better!
 
-## How to Contribute
+## 1. Reporting Issues
 
+If you encounter a bug, have a feature request, or notice something that needs improvement, please report it on our [issues page](https://github.com/ml-in-barcelona/quickjs.ml/issues). When submitting an issue, try to include:
+- A clear description of the problem.
+- Steps to reproduce the issue (if applicable).
+- Expected behavior vs. actual behavior.
+- Any relevant logs or error messages.
 
-### 1. Setup && instalation
+## 2. Documentation Contributions
 
-We first need to setup the quickjs submodule, by running the following: 
+Our documentation is generated using **odoc** and is available [here](https://ml-in-barcelona.github.io/quickjs.ml/docs/local/quickjs/index.html). If you find missing or unclear sections, feel free to improve them by updating the documentation files and submitting a PR.
+
+## 3. Fixing bugs and enhancements
+
+You can browse the [issues page](https://github.com/ml-in-barcelona/quickjs.ml/issues) for open issues or create your own and start working on it.
+If you’d like to work on an issue that hasn't been assigned to anyone, please comment on the issue to let others know you’re working on it, after:
+1. Fork the repository and creating a new branch for your changes.
+2. Making your changes and ensuring they follow the coding style (see below).
+3. Testing your changes before submitting a pull request.
+4. Opening a PR and providing a clear description of the changes.
+
+# How to develop
+
+## 0. Clone the repository
+
+```sh
+$ git clone https://github.com/ml-in-barcelona/quickjs.ml.git
+```
+
+## 1. Instalation
+
+We first need to checkout the quickjs submodule, by running the following:
 
 ```sh
 $ git submodule init
-
 $ git submodule update --recursive --force
 ```
 
 To setup the OCaml project, install the dependencies and build the project, we can simply run:
 
 ```sh
-$ make init
-
-$ make dev
+$ make init # creates the opam switch and installs the dependencies (including lsp and ocamlformat)
+$ make dev # builds the project in watch mode
 ```
 
-### 2. Reporting Issues
+## 2. Running Tests
 
-If you encounter a bug, have a feature request, or notice something that needs improvement, please report it on our [GitHub Issues page](https://github.com/ml-in-barcelona/quickjs.ml/issues). When submitting an issue, try to include:
-- A clear description of the problem.
-- Steps to reproduce the issue (if applicable).
-- Expected behavior vs. actual behavior.
-- Any relevant logs or error messages.
+Before submitting changes, please test your modifications to ensure nothing is broken. Run:
+```sh
+$ make test
+```
+If you add new functionality, adding tests is highly encouraged.
 
-### 3. Fixing Bugs and Enhancements
+To run an isolated case, you can run the [./demo/demo.ml](./demo/demo.ml) executable with:
+```sh
+$ make demo
+```
 
-You can browse the [Issues](https://github.com/ml-in-barcelona/quickjs.ml/issues) page for open issues (or create your own). 
-If you’d like to work on an issue:
-1. Comment on the issue to let others know you’re working on it.
-2. Fork the repository and create a new branch for your changes.
-3. Make your changes and ensure they follow the coding style (see below).
-4. Test your changes before submitting a pull request (PR).
-5. Open a PR and provide a clear description of the changes.
-
-### 4. Documentation Contributions
-
-Our documentation is generated using **odoc** and is available [here](https://ml-in-barcelona.github.io/quickjs.ml/docs/local/quickjs/index.html). If you find missing or unclear sections, feel free to improve them by updating the documentation files and submitting a PR.
-
-### 5. Code Style and Guidelines
+## 3. Code Style and Guidelines
 
 To keep contributions consistent:
 - Follow OCaml best practices.
@@ -53,23 +68,14 @@ To keep contributions consistent:
 - Keep commits clean and atomic.
 - Write clear commit messages.
 
-### 6. Running Tests
-
-Before submitting changes, please test your modifications to ensure nothing is broken. Run:
-```sh
-make test
-```
-
-If you add new functionality, consider adding tests.
-
-### 7. Submitting a Pull Request
+## 4. Submitting a Pull Request
 
 Ensure your changes are rebased on the latest main branch.
 Provide a clear description of your changes in the PR.
 If applicable, update documentation and tests.
 Request a review from one of the maintainers.
 
-### 8. Communication
+## 5. Communication
 
 If you have questions or need help, feel free to:
 
@@ -77,8 +83,7 @@ Open a GitHub Discussion.
 Comment on an issue or PR.
 Reach out via any communication channels listed in the repository.
 
-License
+## License
 By contributing to this project, you agree that your contributions will be licensed under the same [license](./LICENSE.md) as the project.
 
 Happy coding, and thank you for contributing!
-
