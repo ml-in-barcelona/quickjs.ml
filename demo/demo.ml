@@ -1,5 +1,3 @@
-module Regex = Quickjs.RegExp
-
 let print_output (output : string array) =
   let len = Array.length output in
   Printf.printf "\noutput\n";
@@ -9,10 +7,11 @@ let print_output (output : string array) =
 
 let () =
   let re =
-    RegExp.compile "(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})" ~flags:"g"
+    Quickjs.RegExp.compile "(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})"
+      ~flags:"g"
   in
   match re with
   | Ok re ->
-      let result = RegExp.exec re "Today's date is 2024-07-17" in
-      print_output (RegExp.captures result)
+      let result = Quickjs.RegExp.exec re "Today's date is 2024-07-17" in
+      print_output (Quickjs.RegExp.captures result)
   | Error (_, error) -> Printf.printf "Error: %s" error
