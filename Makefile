@@ -61,7 +61,7 @@ init: setup-githooks create-switch install ## Create a local dev enviroment
 
 .PHONY: demo
 demo: ## Run demo executable
-	$(DUNE) exec demo/index.exe \
+	@$(DUNE) exec demo/demo.exe \
 		--profile=demo \
 		--action-stdout-on-success=print \
 		--display-separate-messages \
@@ -71,7 +71,7 @@ demo: ## Run demo executable
 
 .PHONY: demo-watch
 demo-watch: ## Run demo executable
-	$(DUNE) exec demo/index.exe \
+	@$(DUNE) exec demo/demo.exe \
 		--watch \
 		--action-stdout-on-success=print \
 		--display-separate-messages \
