@@ -24,7 +24,7 @@
  (synopsis "Bindings for QuickJS (a Javascript Engine to be embedded https://bellard.org/quickjs)")
  (depends
   ;; General system dependencies
-  (ocaml (>= 5.0.0))
+  (ocaml (>= 4.14.0))
   integers
   ctypes
 
