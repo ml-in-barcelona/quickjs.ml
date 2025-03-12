@@ -18,7 +18,6 @@ depends: [
   "ocaml-lsp-server" {with-test}
   "ocamlformat" {= "0.26.1" & with-test}
 ]
-dev-repo: "git+https://github.com/ml-in-barcelona/quickjs.ml.git"
 build: [
   ["dune" "subst"] {dev}
   [
@@ -30,6 +29,7 @@ build: [
     jobs
     "@install"
     "@runtest" {with-test}
-    "@new-doc" {with-doc}
+    "@doc" {with-doc}
   ]
 ]
+dev-repo: "git+https://github.com/ml-in-barcelona/quickjs.ml.git"
