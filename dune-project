@@ -26,7 +26,7 @@
   ;; General system dependencies
   (ocaml (>= 4.14.0))
   integers
-  ctypes
+  (ctypes (>= 0.13.0))
 
   ;; Test dependencies
   (alcotest :with-test)
