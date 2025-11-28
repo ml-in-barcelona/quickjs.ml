@@ -26,7 +26,8 @@ let a1_t2 () =
 let a1_t3 () =
   (* parseFloat with no numeric characters should return NaN *)
   assert_nan (Number.parseFloat "abc");
-  assert_nan (Number.parseFloat "xyz123")  (* starts with non-digit *)
+  assert_nan (Number.parseFloat "xyz123")
+(* starts with non-digit *)
 
 let a1_t4 () =
   (* parseFloat with decimal numbers *)
@@ -38,7 +39,9 @@ let a1_t5 () =
   (* parseFloat stops at invalid character *)
   assert_float (Number.parseFloat "123abc") 123.0;
   assert_float (Number.parseFloat "3.14xyz") 3.14;
-  assert_float (Number.parseFloat "1.5.6") 1.5  (* second decimal point stops parsing *)
+  assert_float
+    (Number.parseFloat "1.5.6")
+    1.5 (* second decimal point stops parsing *)
 
 let a1_t6 () =
   (* parseFloat with only whitespace returns NaN *)
@@ -153,13 +156,16 @@ let a4_t5 () =
 
 let a4_t6 () =
   (* Exponent edge cases *)
-  assert_float (Number.parseFloat "1e") 1.0;  (* incomplete exponent - returns mantissa *)
-  assert_float (Number.parseFloat "1e+") 1.0; (* incomplete exponent *)
-  assert_float (Number.parseFloat "1e-") 1.0  (* incomplete exponent *)
+  assert_float (Number.parseFloat "1e") 1.0;
+  (* incomplete exponent - returns mantissa *)
+  assert_float (Number.parseFloat "1e+") 1.0;
+  (* incomplete exponent *)
+  assert_float (Number.parseFloat "1e-") 1.0 (* incomplete exponent *)
 
 let a4_t7 () =
   (* Very large exponents *)
-  assert_infinity (Number.parseFloat "1e309");  (* Overflow to Infinity *)
+  assert_infinity (Number.parseFloat "1e309");
+  (* Overflow to Infinity *)
   assert_float (Number.parseFloat "1e308") 1e308
 
 (* ===================================================================
@@ -223,13 +229,15 @@ let a7_7 () =
 
 let misc_t1 () =
   (* Hex notation NOT supported by parseFloat *)
-  assert_float (Number.parseFloat "0x10") 0.0;  (* stops at 'x' *)
+  assert_float (Number.parseFloat "0x10") 0.0;
+  (* stops at 'x' *)
   assert_float (Number.parseFloat "0xFF") 0.0
 
 let misc_t2 () =
   (* Binary/Octal prefixes NOT supported *)
-  assert_float (Number.parseFloat "0b101") 0.0;  (* stops at 'b' *)
-  assert_float (Number.parseFloat "0o777") 0.0   (* stops at 'o' *)
+  assert_float (Number.parseFloat "0b101") 0.0;
+  (* stops at 'b' *)
+  assert_float (Number.parseFloat "0o777") 0.0 (* stops at 'o' *)
 
 let misc_t3 () =
   (* Leading zeros *)
@@ -239,8 +247,10 @@ let misc_t3 () =
 
 let misc_t4 () =
   (* NaN string does NOT parse to NaN value *)
-  assert_nan (Number.parseFloat "NaN");  (* Actually JS returns NaN for "NaN" *)
-  assert_nan (Number.parseFloat "nan")   (* case sensitive *)
+  assert_nan (Number.parseFloat "NaN");
+  (* Actually JS returns NaN for "NaN" *)
+  assert_nan (Number.parseFloat "nan")
+(* case sensitive *)
 
 let misc_t5 () =
   (* Sign edge cases *)
@@ -253,18 +263,21 @@ let misc_t5 () =
 let misc_t6 () =
   (* Very small numbers *)
   assert_float (Number.parseFloat "1e-323") 1e-323;
-  assert_float (Number.parseFloat "5e-324") 5e-324  (* MIN_VALUE *)
+  assert_float (Number.parseFloat "5e-324") 5e-324 (* MIN_VALUE *)
 
 let misc_t7 () =
   (* Negative zero *)
   let result = Number.parseFloat "-0" in
-  assert_float result 0.0;  (* -0.0 = 0.0 in comparison *)
+  assert_float result 0.0;
+  (* -0.0 = 0.0 in comparison *)
   assert_negative_zero result
 
 let misc_t8 () =
   (* Numbers that would lose precision *)
-  assert_float (Number.parseFloat "9007199254740993") 9007199254740992.0;  (* > MAX_SAFE_INTEGER *)
-  assert_float (Number.parseFloat "0.1") 0.1  (* known floating point representation issue *)
+  assert_float (Number.parseFloat "9007199254740993") 9007199254740992.0;
+  (* > MAX_SAFE_INTEGER *)
+  assert_float (Number.parseFloat "0.1")
+    0.1 (* known floating point representation issue *)
 
 let misc_t9 () =
   (* Exponent without mantissa digits before e *)
@@ -277,7 +290,8 @@ let misc_t10 () =
 
 let misc_t11 () =
   (* Mixed case Infinity *)
-  assert_nan (Number.parseFloat "infinity");  (* case sensitive *)
+  assert_nan (Number.parseFloat "infinity");
+  (* case sensitive *)
   assert_nan (Number.parseFloat "INFINITY");
   assert_infinity (Number.parseFloat "Infinity")
 
@@ -290,12 +304,13 @@ let misc_t12 () =
 
 let misc_t13 () =
   (* Multiple e in number *)
-  assert_float (Number.parseFloat "1e2e3") 100.0;  (* stops at second e *)
+  assert_float (Number.parseFloat "1e2e3") 100.0;
+  (* stops at second e *)
   assert_float (Number.parseFloat "1E2E3") 100.0
 
 let misc_t14 () =
   (* Exponent with decimal *)
-  assert_float (Number.parseFloat "1e2.5") 100.0  (* stops at . in exponent *)
+  assert_float (Number.parseFloat "1e2.5") 100.0 (* stops at . in exponent *)
 
 let tests =
   [
@@ -307,7 +322,6 @@ let tests =
     test "S15.1.2.3_A1_T5: stops at invalid char" a1_t5;
     test "S15.1.2.3_A1_T6: whitespace only returns NaN" a1_t6;
     test "S15.1.2.3_A1_T7: invalid start chars" a1_t7;
-
     (* A2: Whitespace handling *)
     test "S15.1.2.3_A2_T1: leading spaces" a2_t1;
     test "S15.1.2.3_A2_T2: leading tabs" a2_t2;
@@ -319,12 +333,10 @@ let tests =
     test "S15.1.2.3_A2_T8: non-breaking space" a2_t8;
     test "S15.1.2.3_A2_T9: trailing characters" a2_t9;
     test "S15.1.2.3_A2_T10: whitespace between sign and number" a2_t10;
-
     (* A3: Sign handling *)
     test "S15.1.2.3_A3_T1: positive sign" a3_t1;
     test "S15.1.2.3_A3_T2: negative sign" a3_t2;
     test "S15.1.2.3_A3_T3: sign with whitespace" a3_t3;
-
     (* A4: Scientific notation *)
     test "S15.1.2.3_A4_T1: basic exponent" a4_t1;
     test "S15.1.2.3_A4_T2: uppercase E" a4_t2;
@@ -333,19 +345,16 @@ let tests =
     test "S15.1.2.3_A4_T5: decimal with exponent" a4_t5;
     test "S15.1.2.3_A4_T6: incomplete exponent" a4_t6;
     test "S15.1.2.3_A4_T7: very large exponents" a4_t7;
-
     (* A5: Infinity *)
     test "S15.1.2.3_A5_T1: Infinity string" a5_t1;
     test "S15.1.2.3_A5_T2: signed Infinity" a5_t2;
     test "S15.1.2.3_A5_T3: Infinity with whitespace" a5_t3;
     test "S15.1.2.3_A5_T4: Infinity with trailing chars" a5_t4;
-
     (* A6-A7: Edge cases *)
     test "S15.1.2.3_A6: multiple decimal points" a6;
     test "S15.1.2.3_A7.5: leading decimal point" a7_5;
     test "S15.1.2.3_A7.6: trailing decimal point" a7_6;
     test "S15.1.2.3_A7.7: decimal with exponent" a7_7;
-
     (* Miscellaneous *)
     test "misc_t1: hex not supported" misc_t1;
     test "misc_t2: binary/octal not supported" misc_t2;
@@ -362,4 +371,3 @@ let tests =
     test "misc_t13: multiple e" misc_t13;
     test "misc_t14: exponent with decimal" misc_t14;
   ]
-

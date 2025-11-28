@@ -4,18 +4,20 @@ type t
 type result
 (** The result of a executing a RegExp on a string *)
 
-val compile :
-  flags:string ->
-  string ->
-  ( t,
-    [ `Unexpected_end
-    | `Malformed_unicode_char
-    | `Invalid_escape_sequence
-    | `Nothing_to_repeat
-    | `Unknown of string ]
-    * string )
-  Stdlib.result
-(** Constructs a RegExp.t from a string describing a regex and their flags *)
+type compile_error =
+  [ `Unexpected_end
+  | `Malformed_unicode_char
+  | `Invalid_escape_sequence
+  | `Nothing_to_repeat
+  | `Unknown of string ]
+(** Possible errors when compiling a RegExp pattern *)
+
+val compile_error_to_string : compile_error -> string
+(** Convert a compile error to a human-readable string *)
+
+val compile : flags:string -> string -> (t, compile_error) Stdlib.result
+(** Constructs a RegExp.t from a string describing a regex and their flags.
+    Returns [Error (error_type, raw_message)] if compilation fails. *)
 
 val lastIndex : t -> int
 (** returns the index where the next match will start its search *)

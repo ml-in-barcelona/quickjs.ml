@@ -111,7 +111,8 @@ let source_with_forward_slash () =
 
 let source_backslash () =
   (* Backslash in pattern *)
-  let re = regexp_compile "\\\\" ~flags:"" in  (* matches a single backslash *)
+  let re = regexp_compile "\\\\" ~flags:"" in
+  (* matches a single backslash *)
   assert_string (RegExp.source re) "\\\\"
 
 let tests =
@@ -131,4 +132,3 @@ let tests =
     test "source: forward slash" source_with_forward_slash;
     test "source: backslash" source_backslash;
   ]
-

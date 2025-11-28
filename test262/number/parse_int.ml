@@ -123,7 +123,7 @@ let a3_1_t4 () =
 let a3_1_t5 () =
   (* Sign with zero *)
   assert_float (Number.parseInt "+0") 0.0;
-  assert_float (Number.parseInt "-0") 0.0  (* Note: -0.0 in OCaml *)
+  assert_float (Number.parseInt "-0") 0.0 (* Note: -0.0 in OCaml *)
 
 let a3_1_t6 () =
   (* Negative with hex prefix *)
@@ -244,8 +244,10 @@ let a6_1_t6 () =
 
 let a7_1_t1 () =
   (* Digits beyond radix should stop parsing *)
-  assert_float (Number.parseInt ~radix:2 "102") 2.0;  (* stops at '0' after '10' *)
-  assert_float (Number.parseInt ~radix:8 "789") 7.0;  (* stops at '8' *)
+  assert_float (Number.parseInt ~radix:2 "102") 2.0;
+  (* stops at '0' after '10' *)
+  assert_float (Number.parseInt ~radix:8 "789") 7.0;
+  (* stops at '8' *)
   assert_float (Number.parseInt ~radix:10 "12abc") 12.0
 
 let a7_1_t2 () =
@@ -256,7 +258,8 @@ let a7_1_t2 () =
 
 let a7_2_t1 () =
   (* Large numbers *)
-  assert_float (Number.parseInt "9007199254740991") 9007199254740991.0;  (* MAX_SAFE_INTEGER *)
+  assert_float (Number.parseInt "9007199254740991") 9007199254740991.0;
+  (* MAX_SAFE_INTEGER *)
   assert_float (Number.parseInt "9007199254740992") 9007199254740992.0
 
 let a7_2_t2 () =
@@ -281,7 +284,9 @@ let a7_3_t1 () =
 let a7_3_t2 () =
   (* Leading zeros with explicit radix *)
   assert_float (Number.parseInt ~radix:10 "00123") 123.0;
-  assert_float (Number.parseInt ~radix:8 "00123") 83.0  (* Octal interpretation *)
+  assert_float
+    (Number.parseInt ~radix:8 "00123")
+    83.0 (* Octal interpretation *)
 
 let a7_3_t3 () =
   (* Only zeros *)
@@ -302,22 +307,26 @@ let a8 () =
 
 let misc_t1 () =
   (* Scientific notation is not parsed by parseInt *)
-  assert_float (Number.parseInt "1e10") 1.0;  (* stops at 'e' *)
+  assert_float (Number.parseInt "1e10") 1.0;
+  (* stops at 'e' *)
   assert_float (Number.parseInt "1E10") 1.0
 
 let misc_t2 () =
   (* Unicode digits (not supported by parseInt - ASCII only) *)
   (* Full-width digits should return NaN *)
-  assert_nan (Number.parseInt "\xEF\xBC\x91\xEF\xBC\x92\xEF\xBC\x93")  (* １２３ U+FF11-FF13 *)
+  assert_nan (Number.parseInt "\xEF\xBC\x91\xEF\xBC\x92\xEF\xBC\x93")
+(* １２３ U+FF11-FF13 *)
 
 let misc_t3 () =
   (* Octal prefix 0o is NOT auto-detected by parseInt *)
-  assert_float (Number.parseInt "0o123") 0.0;  (* stops at 'o' *)
+  assert_float (Number.parseInt "0o123") 0.0;
+  (* stops at 'o' *)
   assert_float (Number.parseInt "0O123") 0.0
 
 let misc_t4 () =
   (* Binary prefix 0b is NOT auto-detected by parseInt *)
-  assert_float (Number.parseInt "0b101") 0.0;  (* stops at 'b' *)
+  assert_float (Number.parseInt "0b101") 0.0;
+  (* stops at 'b' *)
   assert_float (Number.parseInt "0B101") 0.0
 
 let misc_t5 () =
@@ -331,12 +340,14 @@ let misc_t6 () =
   assert_float (Number.parseInt ~radix:2 "1") 1.0;
   assert_float (Number.parseInt ~radix:2 "0") 0.0;
   assert_float (Number.parseInt ~radix:36 "0") 0.0;
-  assert_float (Number.parseInt ~radix:36 "zz") 1295.0  (* 35*36 + 35 *)
+  assert_float (Number.parseInt ~radix:36 "zz") 1295.0 (* 35*36 + 35 *)
 
 let misc_t7 () =
   (* Case insensitivity in hex and higher bases *)
   assert_float (Number.parseInt ~radix:16 "AbCdEf") 11259375.0;
-  assert_float (Number.parseInt ~radix:36 "Hello") 29234652.0  (* H=17, e=14, l=21, l=21, o=24 *)
+  assert_float
+    (Number.parseInt ~radix:36 "Hello")
+    29234652.0 (* H=17, e=14, l=21, l=21, o=24 *)
 
 let misc_t8 () =
   (* Whitespace characters comprehensive test *)
@@ -352,7 +363,6 @@ let tests =
     test "S15.1.2.2_A1_T5: sign only returns NaN" a1_t5;
     test "S15.1.2.2_A1_T6: stops at invalid chars" a1_t6;
     test "S15.1.2.2_A1_T7: NaN/Infinity strings return NaN" a1_t7;
-
     (* A2: Whitespace handling *)
     test "S15.1.2.2_A2_T1: leading spaces" a2_t1;
     test "S15.1.2.2_A2_T2: leading tabs" a2_t2;
@@ -364,7 +374,6 @@ let tests =
     test "S15.1.2.2_A2_T8: non-breaking space" a2_t8;
     test "S15.1.2.2_A2_T9: trailing whitespace" a2_t9;
     test "S15.1.2.2_A2_T10: whitespace between sign and digits" a2_t10;
-
     (* A3.1: Sign handling *)
     test "S15.1.2.2_A3.1_T1: positive sign" a3_1_t1;
     test "S15.1.2.2_A3.1_T2: negative sign" a3_1_t2;
@@ -373,23 +382,19 @@ let tests =
     test "S15.1.2.2_A3.1_T5: sign with zero" a3_1_t5;
     test "S15.1.2.2_A3.1_T6: sign with hex prefix" a3_1_t6;
     test "S15.1.2.2_A3.1_T7: sign alone" a3_1_t7;
-
     (* A3.2: Radix with sign *)
     test "S15.1.2.2_A3.2_T1: negative hex" a3_2_t1;
     test "S15.1.2.2_A3.2_T2: negative binary" a3_2_t2;
     test "S15.1.2.2_A3.2_T3: negative octal" a3_2_t3;
-
     (* A4: Radix handling *)
     test "S15.1.2.2_A4.1_T1: radix 2" a4_1_t1;
     test "S15.1.2.2_A4.1_T2: radix 8" a4_1_t2;
     test "S15.1.2.2_A4.2_T1: radix 16" a4_2_t1;
     test "S15.1.2.2_A4.2_T2: radix 36" a4_2_t2;
-
     (* A5: Hex prefix *)
     test "S15.1.2.2_A5.1_T1: 0x prefix auto-detection" a5_1_t1;
     test "S15.1.2.2_A5.2_T1: 0x with explicit radix 16" a5_2_t1;
     test "S15.1.2.2_A5.2_T2: 0x with non-16 radix" a5_2_t2;
-
     (* A6: Invalid radix *)
     test "S15.1.2.2_A6.1_T1: radix 0 auto-detects" a6_1_t1;
     test "S15.1.2.2_A6.1_T2: radix 1 invalid" a6_1_t2;
@@ -397,7 +402,6 @@ let tests =
     test "S15.1.2.2_A6.1_T4: large radix invalid" a6_1_t4;
     test "S15.1.2.2_A6.1_T5: negative radix invalid" a6_1_t5;
     test "S15.1.2.2_A6.1_T6: boundary radix valid" a6_1_t6;
-
     (* A7: Digit and radix edge cases *)
     test "S15.1.2.2_A7.1_T1: digits beyond radix" a7_1_t1;
     test "S15.1.2.2_A7.1_T2: all digits invalid" a7_1_t2;
@@ -407,10 +411,8 @@ let tests =
     test "S15.1.2.2_A7.3_T1: leading zeros" a7_3_t1;
     test "S15.1.2.2_A7.3_T2: leading zeros with radix" a7_3_t2;
     test "S15.1.2.2_A7.3_T3: only zeros" a7_3_t3;
-
     (* A8: Various edge cases *)
     test "S15.1.2.2_A8: decimal point" a8;
-
     (* Miscellaneous *)
     test "misc_t1: scientific notation not parsed" misc_t1;
     test "misc_t2: unicode digits not supported" misc_t2;
@@ -421,4 +423,3 @@ let tests =
     test "misc_t7: case insensitivity" misc_t7;
     test "misc_t8: comprehensive whitespace" misc_t8;
   ]
-

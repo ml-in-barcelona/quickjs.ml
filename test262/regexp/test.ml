@@ -18,14 +18,16 @@ let a1_t1 () =
   (* Simple pattern match *)
   let re = regexp_compile "abc" ~flags:"" in
   assert_bool (RegExp.test re "abc") true;
-  assert_bool (RegExp.test re "abcd") true;  (* contains abc *)
-  assert_bool (RegExp.test re "xabcy") true  (* contains abc *)
+  assert_bool (RegExp.test re "abcd") true;
+  (* contains abc *)
+  assert_bool (RegExp.test re "xabcy") true (* contains abc *)
 
 let a1_t2 () =
   (* No match returns false *)
   let re = regexp_compile "abc" ~flags:"" in
   assert_bool (RegExp.test re "def") false;
-  assert_bool (RegExp.test re "ab") false;   (* incomplete *)
+  assert_bool (RegExp.test re "ab") false;
+  (* incomplete *)
   assert_bool (RegExp.test re "") false
 
 let a1_t3 () =
@@ -94,12 +96,14 @@ let a1_t11 () =
   assert_bool (RegExp.test re "bbb") false;
 
   let re2 = regexp_compile "a*" ~flags:"" in
-  assert_bool (RegExp.test re2 "") true;  (* zero or more *)
-  assert_bool (RegExp.test re2 "bbb") true;  (* matches empty string within *)
+  assert_bool (RegExp.test re2 "") true;
+  (* zero or more *)
+  assert_bool (RegExp.test re2 "bbb") true;
 
+  (* matches empty string within *)
   let re3 = regexp_compile "a?" ~flags:"" in
   assert_bool (RegExp.test re3 "a") true;
-  assert_bool (RegExp.test re3 "b") true   (* matches empty string *)
+  assert_bool (RegExp.test re3 "b") true (* matches empty string *)
 
 let a1_t12 () =
   (* Groups *)
@@ -154,7 +158,7 @@ let flag_g () =
   assert_bool (RegExp.test re input) true;
   (* After exhausting matches, returns false and resets *)
   assert_bool (RegExp.test re input) false;
-  assert_bool (RegExp.test re input) true  (* starts over *)
+  assert_bool (RegExp.test re input) true (* starts over *)
 
 let flag_m () =
   (* Multiline flag *)
@@ -177,16 +181,18 @@ let flag_y () =
   (* Sticky flag - must reset lastIndex between tests because sticky flag
      advances lastIndex after each successful match *)
   let re = regexp_compile "a" ~flags:"y" in
-  assert_bool (RegExp.test re "abc") true;  (* matches at position 0, lastIndex becomes 1 *)
+  assert_bool (RegExp.test re "abc") true;
+  (* matches at position 0, lastIndex becomes 1 *)
   (* Reset lastIndex to test from position 0 again *)
   RegExp.setLastIndex re 0;
-  assert_bool (RegExp.test re "bac") false  (* doesn't match at position 0 *)
+  assert_bool (RegExp.test re "bac") false (* doesn't match at position 0 *)
 
 let flag_y_lastindex () =
   (* Sticky flag with lastIndex *)
   let re = regexp_compile "a" ~flags:"y" in
   RegExp.setLastIndex re 1;
-  assert_bool (RegExp.test re "bac") true;  (* matches at position 1 *)
+  assert_bool (RegExp.test re "bac") true;
+  (* matches at position 1 *)
   assert_int (RegExp.lastIndex re) 2
 
 (* ===================================================================
@@ -251,7 +257,7 @@ let repetition_bounds () =
   assert_bool (RegExp.test re "aa") true;
   assert_bool (RegExp.test re "aaa") true;
   assert_bool (RegExp.test re "aaaa") true;
-  assert_bool (RegExp.test re "aaaaa") true  (* greedy, matches first 4 *)
+  assert_bool (RegExp.test re "aaaaa") true (* greedy, matches first 4 *)
 
 let tests =
   [
@@ -271,15 +277,13 @@ let tests =
     test "S15.10.6.3_A1_T13: optional group" a1_t13;
     test "S15.10.6.3_A1_T14: escape sequences" a1_t14;
     test "S15.10.6.3_A1_T15: whitespace" a1_t15;
-
     (* Flag behavior *)
     test "flag_i: case insensitive" flag_i;
-    (* test "flag_g: global" flag_g; *) (* HANGS - lastIndex not advancing *)
+    test "flag_g: global" flag_g;
     test "flag_m: multiline" flag_m;
     test "flag_s: dotall" flag_s;
     test "flag_y: sticky" flag_y;
-    (* test "flag_y_lastindex: sticky with lastIndex" flag_y_lastindex; *) (* HANGS *)
-
+    test "flag_y_lastindex: sticky with lastIndex" flag_y_lastindex;
     (* Edge cases *)
     test "special_chars: regex metacharacters" special_chars;
     test "unicode_basic: unicode matching" unicode_basic;
@@ -289,4 +293,3 @@ let tests =
     test "backreference: backreference" backreference;
     test "repetition_bounds: bounded repetition" repetition_bounds;
   ]
-

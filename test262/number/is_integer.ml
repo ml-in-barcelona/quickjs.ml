@@ -33,13 +33,15 @@ let negative_integers () =
 let large_integers () =
   assert_bool (Number.isInteger max_safe_integer) true;
   assert_bool (Number.isInteger min_safe_integer) true;
-  assert_bool (Number.isInteger 9007199254740992.0) true  (* MAX_SAFE_INTEGER + 1 *)
+  assert_bool
+    (Number.isInteger 9007199254740992.0)
+    true (* MAX_SAFE_INTEGER + 1 *)
 
 let decimal_zero_fraction () =
   (* Numbers that look like decimals but have .0 *)
   assert_bool (Number.isInteger 5.0) true;
   assert_bool (Number.isInteger 123.0) true;
-  assert_bool (Number.isInteger 1e10) true  (* 10000000000.0 *)
+  assert_bool (Number.isInteger 1e10) true (* 10000000000.0 *)
 
 (* ===================================================================
    Non-integer values should return false
@@ -61,8 +63,7 @@ let small_fractions () =
    Special values should return false
    =================================================================== *)
 
-let nan_value () =
-  assert_bool (Number.isInteger nan) false
+let nan_value () = assert_bool (Number.isInteger nan) false
 
 let infinity_values () =
   assert_bool (Number.isInteger infinity) false;
@@ -81,18 +82,21 @@ let min_value_is_not_integer () =
   (* MIN_VALUE is 5e-324, a very small fraction *)
   assert_bool (Number.isInteger min_value) false
 
-let epsilon_is_not_integer () =
-  assert_bool (Number.isInteger epsilon) false
+let epsilon_is_not_integer () = assert_bool (Number.isInteger epsilon) false
 
 let powers_of_two () =
-  assert_bool (Number.isInteger (2.0 ** 10.0)) true;  (* 1024 *)
-  assert_bool (Number.isInteger (2.0 ** 52.0)) true;  (* Within safe integer range *)
-  assert_bool (Number.isInteger (2.0 ** 53.0)) true   (* MAX_SAFE_INTEGER + 1 *)
+  assert_bool (Number.isInteger (2.0 ** 10.0)) true;
+  (* 1024 *)
+  assert_bool (Number.isInteger (2.0 ** 52.0)) true;
+  (* Within safe integer range *)
+  assert_bool (Number.isInteger (2.0 ** 53.0)) true (* MAX_SAFE_INTEGER + 1 *)
 
 let scientific_notation () =
-  assert_bool (Number.isInteger 1e5) true;   (* 100000 *)
-  assert_bool (Number.isInteger 5e3) true;   (* 5000 *)
-  assert_bool (Number.isInteger 1e-5) false  (* 0.00001 *)
+  assert_bool (Number.isInteger 1e5) true;
+  (* 100000 *)
+  assert_bool (Number.isInteger 5e3) true;
+  (* 5000 *)
+  assert_bool (Number.isInteger 1e-5) false (* 0.00001 *)
 
 (* Note: In OCaml, Number.isInteger only takes float values, so we don't need
    to test non-number types. Those would be type errors at compile time. *)
@@ -105,15 +109,12 @@ let tests =
     test "integers: negative" negative_integers;
     test "integers: large" large_integers;
     test "integers: decimal zero fraction" decimal_zero_fraction;
-
     (* Non-integer values - return false *)
     test "non_integers: decimals" decimals;
     test "non_integers: small fractions" small_fractions;
-
     (* Special values - return false *)
     test "special: NaN" nan_value;
     test "special: Infinity" infinity_values;
-
     (* Edge cases *)
     test "edge: MAX_VALUE is integer" max_value_is_integer;
     test "edge: MIN_VALUE is not integer" min_value_is_not_integer;
@@ -121,4 +122,3 @@ let tests =
     test "edge: powers of two" powers_of_two;
     test "edge: scientific notation" scientific_notation;
   ]
-

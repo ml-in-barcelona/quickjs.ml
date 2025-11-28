@@ -14,6 +14,20 @@ type matchResult = {
 
 type result = (matchResult, string) Stdlib.result
 
+type compile_error =
+  [ `Unexpected_end
+  | `Malformed_unicode_char
+  | `Invalid_escape_sequence
+  | `Nothing_to_repeat
+  | `Unknown of string ]
+
+let compile_error_to_string = function
+  | `Unexpected_end -> "unexpected end"
+  | `Malformed_unicode_char -> "malformed unicode char"
+  | `Invalid_escape_sequence -> "invalid escape sequence"
+  | `Nothing_to_repeat -> "nothing to repeat"
+  | `Unknown s -> s
+
 (* #define LRE_FLAG_GLOBAL (1 << 0) *)
 let lre_flag_global = 0b01
 
@@ -88,8 +102,7 @@ let needs_unicode_mode s =
     if i >= len then false
     else
       let byte = Char.code s.[i] in
-      if byte >= 0x80 then true
-      else check (i + 1)
+      if byte >= 0x80 then true else check (i + 1)
   in
   check 0
 
@@ -116,14 +129,13 @@ let compile ~flags re =
       let length = strlen error_msg in
       let error = Ctypes.string_from_ptr ~length error_msg in
       Error
-        ( (match error with
-          | "unexpected end" -> `Unexpected_end
-          | "malformed unicode char" -> `Malformed_unicode_char
-          | "nothing to repeat" -> `Nothing_to_repeat
-          | "invalid escape sequence in regular expression" ->
-              `Invalid_escape_sequence
-          | unknown -> `Unknown unknown),
-          error )
+        (match error with
+        | "unexpected end" -> `Unexpected_end
+        | "malformed unicode char" -> `Malformed_unicode_char
+        | "nothing to repeat" -> `Nothing_to_repeat
+        | "invalid escape sequence in regular expression" ->
+            `Invalid_escape_sequence
+        | unknown -> `Unknown unknown)
 
 let index result = match result with Ok result -> result.index | Error _ -> 0
 let lastIndex regexp = regexp.lastIndex
@@ -156,17 +168,17 @@ let utf8_to_utf16_bytes s =
     match Uutf.decode decoder with
     | `Uchar u ->
         let code = Uchar.to_int u in
-        if code < 0x10000 then add_u16 code
-        else begin
-          (* Surrogate pair for code points >= 0x10000 *)
-          let code' = code - 0x10000 in
-          add_u16 (0xD800 lor (code' lsr 10));
-          add_u16 (0xDC00 lor (code' land 0x3FF))
-        end;
+        (if code < 0x10000 then add_u16 code
+         else
+           (* Surrogate pair for code points >= 0x10000 *)
+           let code' = code - 0x10000 in
+           add_u16 (0xD800 lor (code' lsr 10));
+           add_u16 (0xDC00 lor (code' land 0x3FF)));
         loop ()
     | `End -> Buffer.contents buf
     | `Malformed _ ->
-        add_u16 0xFFFD; (* Replacement character *)
+        add_u16 0xFFFD;
+        (* Replacement character *)
         loop ()
     | `Await -> assert false
   in
@@ -183,8 +195,8 @@ let build_utf16_to_utf8_map s =
     | `Uchar u ->
         map := (!utf16_idx, byte_idx) :: !map;
         let code = Uchar.to_int u in
-        if code < 0x10000 then incr utf16_idx
-        else utf16_idx := !utf16_idx + 2; (* Surrogate pair *)
+        if code < 0x10000 then incr utf16_idx else utf16_idx := !utf16_idx + 2;
+        (* Surrogate pair *)
         loop ()
     | `End ->
         map := (!utf16_idx, byte_idx) :: !map;
@@ -201,16 +213,36 @@ let build_utf16_to_utf8_map s =
 let utf16_to_utf8_index map utf16_idx =
   (* Binary search or linear scan *)
   let rec find i =
-    if i >= Array.length map then
-      snd map.(Array.length map - 1)
+    if i >= Array.length map then snd map.(Array.length map - 1)
     else
-      let (u16, u8) = map.(i) in
+      let u16, u8 = map.(i) in
       if u16 = utf16_idx then u8
-      else if u16 > utf16_idx then
-        if i = 0 then 0 else snd map.(i - 1)
+      else if u16 > utf16_idx then if i = 0 then 0 else snd map.(i - 1)
       else find (i + 1)
   in
   find 0
+
+(* Convert UTF-8 byte index to UTF-16 code unit index *)
+let utf8_to_utf16_index s utf8_idx =
+  let decoder = Uutf.decoder ~encoding:`UTF_8 (`String s) in
+  let utf16_idx = ref 0 in
+  let rec loop () =
+    let byte_idx = Uutf.decoder_byte_count decoder in
+    if byte_idx >= utf8_idx then !utf16_idx
+    else
+      match Uutf.decode decoder with
+      | `Uchar u ->
+          let code = Uchar.to_int u in
+          if code < 0x10000 then incr utf16_idx else utf16_idx := !utf16_idx + 2;
+          (* Surrogate pair *)
+          loop ()
+      | `End -> !utf16_idx
+      | `Malformed _ ->
+          incr utf16_idx;
+          loop ()
+      | `Await -> assert false
+  in
+  loop ()
 
 (* exec is not a binding to lre_exec but an implementation of `js_regexp_exec` *)
 let exec regexp input =
@@ -220,11 +252,15 @@ let exec regexp input =
   let start_capture = Ctypes.CArray.start capture in
 
   (* Check if we need Unicode mode (pattern has non-ASCII or unicode flag) *)
-  let use_unicode = unicode regexp || needs_unicode_mode regexp.source ||
-                    needs_unicode_mode input in
+  let use_unicode =
+    unicode regexp
+    || needs_unicode_mode regexp.source
+    || needs_unicode_mode input
+  in
 
-  let buffer, matching_length, shift, utf16_map =
-    if use_unicode then begin
+  (* Create buffer and keep it alive - bufp must not go out of scope before lre_exec *)
+  let bufp, matching_length, shift, utf16_map =
+    if use_unicode then
       (* Convert UTF-8 input to UTF-16 for proper Unicode matching *)
       let utf16_str = utf8_to_utf16_bytes input in
       let utf16_len = String.length utf16_str in
@@ -234,104 +270,118 @@ let exec regexp input =
       in
       let bufp = Ctypes.CArray.of_list Ctypes.uint8_t bytes_list in
       let map = build_utf16_to_utf8_map input in
-      (Ctypes.CArray.start bufp, utf16_len / 2, 1, Some map)
-    end else begin
+      (bufp, utf16_len / 2, 1, Some map)
+    else
       (* ASCII-only: use bytes directly *)
       let bytes_list =
         List.init (String.length input) (fun i ->
             Unsigned.UInt8.of_int (Char.code input.[i]))
       in
       let bufp = Ctypes.CArray.of_list Ctypes.uint8_t bytes_list in
-      (Ctypes.CArray.start bufp, String.length input, 0, None)
-    end
+      (bufp, String.length input, 0, None)
   in
+  let buffer = Ctypes.CArray.start bufp in
 
   let lastIndex =
     match global regexp || sticky regexp with
-    | true -> regexp.lastIndex
+    | true ->
+        if use_unicode then
+          (* Convert UTF-8 byte position to UTF-16 code unit position *)
+          utf8_to_utf16_index input regexp.lastIndex
+        else regexp.lastIndex
     | false -> 0
   in
 
-  let exec_result =
-    Bindings.C.Functions.lre_exec start_capture regexp.bc buffer lastIndex
-      matching_length shift Ctypes.null
-  in
+  (* Check if lastIndex is beyond string length (QuickJS does this check) *)
+  if lastIndex > matching_length then (
+    (* No match possible - reset lastIndex and return empty result *)
+    (match sticky regexp || global regexp with
+    | true -> regexp.lastIndex <- 0
+    | false -> ());
+    Ok { captures = [||]; input; index = 0; groups = [] })
+  else
+    let exec_result =
+      Bindings.C.Functions.lre_exec start_capture regexp.bc buffer lastIndex
+        matching_length shift Ctypes.null
+    in
+    (* Keep bufp alive until after lre_exec completes *)
+    let _ = bufp in
 
-  match exec_result with
-  | 1 ->
-      let substrings = Array.make capture_count "" in
-      let i = ref 0 in
-      let index = ref 0 in
-      let groups = ref [] in
-      let group_name_ptr =
-        ref (Bindings.C.Functions.lre_get_groupnames regexp.bc)
-      in
-      while !i < capture_size - 1 do
-        let start_ptr = Ctypes.CArray.get capture !i in
-        let end_ptr = Ctypes.CArray.get capture (!i + 1) in
-        let raw_start = Ctypes.ptr_diff buffer start_ptr in
-        let raw_length = Ctypes.ptr_diff start_ptr end_ptr in
-
-        (* Convert indices based on mode *)
-        let start_index, length =
-          match utf16_map with
-          | Some map ->
-              (* UTF-16 mode: convert indices back to UTF-8 byte positions *)
-              let u16_start = raw_start / 2 in
-              let u16_end = u16_start + (raw_length / 2) in
-              let u8_start = utf16_to_utf8_index map u16_start in
-              let u8_end = utf16_to_utf8_index map u16_end in
-              (u8_start, u8_end - u8_start)
-          | None ->
-              (* ASCII mode: indices are byte positions *)
-              (raw_start, raw_length)
+    match exec_result with
+    | 1 ->
+        let substrings = Array.make capture_count "" in
+        let i = ref 0 in
+        let index = ref 0 in
+        let groups = ref [] in
+        let group_name_ptr =
+          ref (Bindings.C.Functions.lre_get_groupnames regexp.bc)
         in
+        while !i < capture_size - 1 do
+          let start_ptr = Ctypes.CArray.get capture !i in
+          let end_ptr = Ctypes.CArray.get capture (!i + 1) in
+          let raw_start = Ctypes.ptr_diff buffer start_ptr in
+          let raw_length = Ctypes.ptr_diff start_ptr end_ptr in
 
-        (* Only set index on first capture (the full match) *)
-        if !i = 0 then index := start_index;
-        let substring =
-          match String.sub input start_index length with
-          | sub -> sub
-          | exception _ -> ""
-        in
-        (* Store the captured substring *)
-        substrings.(!i / 2) <- substring;
-        (* Update the lastIndex *)
-        regexp.lastIndex <- start_index + length;
+          (* Convert indices based on mode *)
+          let start_index, length =
+            match utf16_map with
+            | Some map ->
+                (* UTF-16 mode: convert indices back to UTF-8 byte positions *)
+                let u16_start = raw_start / 2 in
+                let u16_end = u16_start + (raw_length / 2) in
+                let u8_start = utf16_to_utf8_index map u16_start in
+                let u8_end = utf16_to_utf8_index map u16_end in
+                (u8_start, u8_end - u8_start)
+            | None ->
+                (* ASCII mode: indices are byte positions *)
+                (raw_start, raw_length)
+          in
 
-        (* if (\*group_name_ptr) { *)
-        (match !group_name_ptr with
-        (* if (group_name_ptr && i > 0) { *)
-        | Some pointer when !i > 0 ->
-            (*
+          (* Only set index on first capture (the full match) *)
+          if !i = 0 then index := start_index;
+          let substring =
+            match String.sub input start_index length with
+            | sub -> sub
+            | exception _ -> ""
+          in
+          (* Store the captured substring *)
+          substrings.(!i / 2) <- substring;
+          (* Update the lastIndex *)
+          regexp.lastIndex <- start_index + length;
+
+          (* if (\*group_name_ptr) { *)
+          (match !group_name_ptr with
+          (* if (group_name_ptr && i > 0) { *)
+          | Some pointer when !i > 0 ->
+              (*
               if (JS_DefinePropertyValueStr(ctx, groups, group_name_ptr, JS_DupValue(ctx, val), prop_flags) < 0) {
                   JS_FreeValue(ctx, val);
                   goto fail;
               }
             *)
-            (* store the group name and its captured value, but only if named *)
-            let name_len = strlen pointer in
-            (if name_len > 0 then
-               let current_group_name =
-                 Ctypes.string_from_ptr ~length:name_len pointer
-               in
-               groups := (current_group_name, substring) :: !groups);
-            (* group_name_ptr += strlen(group_name_ptr) + 1; *)
-            let next_group_name_ptr = Ctypes.( +@ ) pointer (name_len + 1) in
-            if Ctypes.is_null next_group_name_ptr then group_name_ptr := None
-            else group_name_ptr := Some next_group_name_ptr
-        | None | Some _ -> ());
-        (* Incement the index *)
-        i := !i + 2
-      done;
-      Ok { captures = substrings; input; index = !index; groups = !groups }
-  | 0 ->
-      (* When there's no matches left, lastIndex goes back to 0 *)
-      (match sticky regexp || global regexp with
-      | true -> regexp.lastIndex <- 0
-      | false -> ());
-      Ok { captures = [||]; input; index = 0; groups = [] }
-  | _ (* -1 *) -> Error "Error"
+              (* store the group name and its captured value, but only if named *)
+              let name_len = strlen pointer in
+              (if name_len > 0 then
+                 let current_group_name =
+                   Ctypes.string_from_ptr ~length:name_len pointer
+                 in
+                 groups := (current_group_name, substring) :: !groups);
+              (* group_name_ptr += strlen(group_name_ptr) + 1; *)
+              let next_group_name_ptr = Ctypes.( +@ ) pointer (name_len + 1) in
+              if Ctypes.is_null next_group_name_ptr then group_name_ptr := None
+              else group_name_ptr := Some next_group_name_ptr
+          | None | Some _ -> ());
+          (* Incement the index *)
+          i := !i + 2
+        done;
+        Ok { captures = substrings; input; index = !index; groups = !groups }
+    | 0 ->
+        (* When there's no matches left, lastIndex goes back to 0 *)
+        (match sticky regexp || global regexp with
+        | true -> regexp.lastIndex <- 0
+        | false -> ());
+        Ok { captures = [||]; input; index = 0; groups = [] }
+    | _ (* -1 *) -> Error "Error"
 
 let test regexp input =
   let result = exec regexp input in

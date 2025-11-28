@@ -26,15 +26,15 @@ let is_unicode_whitespace uchar =
   | 0x0020 (* Space *)
   | 0x00A0 (* NBSP *)
   | 0x1680 (* Ogham Space Mark *)
-  | 0x2000 | 0x2001 | 0x2002 | 0x2003 | 0x2004
-  | 0x2005 | 0x2006 | 0x2007 | 0x2008 | 0x2009
-  | 0x200A (* Various spaces *)
+  | 0x2000 | 0x2001 | 0x2002 | 0x2003 | 0x2004 | 0x2005 | 0x2006 | 0x2007
+  | 0x2008 | 0x2009 | 0x200A (* Various spaces *)
   | 0x2028 (* Line Separator *)
   | 0x2029 (* Paragraph Separator *)
   | 0x202F (* Narrow NBSP *)
   | 0x205F (* Medium Mathematical Space *)
   | 0x3000 (* Ideographic Space *)
-  | 0xFEFF (* BOM/ZWNBSP *) -> true
+  | 0xFEFF (* BOM/ZWNBSP *) ->
+      true
   | _ -> false
 
 (* Skip whitespace in a UTF-8 string, returning the byte index after whitespace *)
@@ -44,7 +44,8 @@ let skip_whitespace s start =
   (* Skip to start position *)
   let rec skip_to_start byte_pos =
     if byte_pos >= start then byte_pos
-    else match Uutf.decode decoder with
+    else
+      match Uutf.decode decoder with
       | `Uchar _ -> skip_to_start (Uutf.decoder_byte_count decoder)
       | `Malformed _ -> skip_to_start (Uutf.decoder_byte_count decoder)
       | `End | `Await -> byte_pos
@@ -54,7 +55,8 @@ let skip_whitespace s start =
   let rec loop () =
     let byte_pos = Uutf.decoder_byte_count decoder in
     if byte_pos >= len then byte_pos
-    else match Uutf.decode decoder with
+    else
+      match Uutf.decode decoder with
       | `Uchar u when is_unicode_whitespace u -> loop ()
       | `Uchar _ | `Malformed _ | `End | `Await -> byte_pos
   in

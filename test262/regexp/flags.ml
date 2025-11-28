@@ -179,7 +179,7 @@ let flags_gi_behavior () =
   assert_bool (RegExp.test re input) true;
   assert_bool (RegExp.test re input) true;
   assert_bool (RegExp.test re input) true;
-  assert_bool (RegExp.test re input) false  (* exhausted *)
+  assert_bool (RegExp.test re input) false (* exhausted *)
 
 let flags_gm_behavior () =
   (* Global + multiline *)
@@ -229,40 +229,32 @@ let tests =
     test "flags: single" flags_single;
     test "flags: multiple" flags_multiple;
     test "flags: all" flags_all;
-
     (* global *)
     test "global: true" global_true;
     test "global: false" global_false;
     test "global: with others" global_with_others;
-
     (* ignoreCase *)
     test "ignoreCase: true" ignorecase_true;
     test "ignoreCase: false" ignorecase_false;
     test "ignoreCase: with others" ignorecase_with_others;
-
     (* multiline *)
     test "multiline: true" multiline_true;
     test "multiline: false" multiline_false;
     test "multiline: with others" multiline_with_others;
-
     (* dotAll *)
     test "dotAll: true" dotall_true;
     test "dotAll: false" dotall_false;
     test "dotAll: behavior" dotall_behavior;
-
     (* sticky *)
     test "sticky: true" sticky_true;
     test "sticky: false" sticky_false;
-    (* test "sticky: behavior" sticky_behavior; *) (* HANGS - lastIndex not advancing *)
-
+    test "sticky: behavior" sticky_behavior;
     (* unicode *)
     test "unicode: true" unicode_true;
     test "unicode: false" unicode_false;
-
-    (* combined - HANGS due to lastIndex issues *)
-    (* test "combined: gi" flags_gi_behavior;
+    (* combined *)
+    test "combined: gi" flags_gi_behavior;
     test "combined: gm" flags_gm_behavior;
-    test "combined: gy" flags_gy_behavior; *)
+    test "combined: gy" flags_gy_behavior;
     test "combined: consistency" flags_consistency;
   ]
-

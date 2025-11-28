@@ -14,7 +14,6 @@ let () =
       ("Number.isNaN", Number.Is_nan.tests);
       ("Number.isFinite", Number.Is_finite.tests);
       ("Number.isInteger", Number.Is_integer.tests);
-
       (* RegExp tests *)
       ("RegExp.compile", Regexp.Compile.tests);
       ("RegExp.prototype.test", Regexp.Test.tests);

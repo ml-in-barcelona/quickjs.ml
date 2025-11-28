@@ -15,18 +15,14 @@ module Number = Quickjs.Number
    Infinity values should return false
    =================================================================== *)
 
-let positive_infinity () =
-  assert_bool (Number.isFinite infinity) false
-
-let negative_infinity () =
-  assert_bool (Number.isFinite neg_infinity) false
+let positive_infinity () = assert_bool (Number.isFinite infinity) false
+let negative_infinity () = assert_bool (Number.isFinite neg_infinity) false
 
 (* ===================================================================
    NaN should return false
    =================================================================== *)
 
-let nan_value () =
-  assert_bool (Number.isFinite nan) false
+let nan_value () = assert_bool (Number.isFinite nan) false
 
 let nan_from_operations () =
   assert_bool (Number.isFinite (0.0 /. 0.0)) false;
@@ -66,12 +62,11 @@ let safe_integer_bounds () =
   assert_bool (Number.isFinite max_safe_integer) true;
   assert_bool (Number.isFinite min_safe_integer) true
 
-let epsilon_value () =
-  assert_bool (Number.isFinite epsilon) true
+let epsilon_value () = assert_bool (Number.isFinite epsilon) true
 
 let very_small_numbers () =
   assert_bool (Number.isFinite 1e-300) true;
-  assert_bool (Number.isFinite 5e-324) true  (* MIN_VALUE *)
+  assert_bool (Number.isFinite 5e-324) true (* MIN_VALUE *)
 
 let very_large_numbers () =
   assert_bool (Number.isFinite 1e308) true;
@@ -85,11 +80,10 @@ let tests =
     (* Infinity - returns false *)
     test "infinity: positive Infinity returns false" positive_infinity;
     test "negative_infinity: negative Infinity returns false" negative_infinity;
-
     (* NaN - returns false *)
     test "nan: NaN returns false" nan_value;
-    test "nan_from_operations: NaN from operations returns false" nan_from_operations;
-
+    test "nan_from_operations: NaN from operations returns false"
+      nan_from_operations;
     (* Finite numbers - return true *)
     test "finite_numbers: zeros" zero_values;
     test "finite_numbers: positive integers" positive_integers;
@@ -101,4 +95,3 @@ let tests =
     test "finite_numbers: very small" very_small_numbers;
     test "finite_numbers: very large" very_large_numbers;
   ]
-

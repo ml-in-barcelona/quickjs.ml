@@ -108,7 +108,8 @@ let a2_t4 () =
   (* Optional group that doesn't match *)
   let re = regexp_compile "a(b)?c" ~flags:"" in
   let result = RegExp.exec re "ac" in
-  assert_array (RegExp.captures result) [| "ac"; "" |]  (* group 1 is empty *)
+  assert_array (RegExp.captures result) [| "ac"; "" |]
+(* group 1 is empty *)
 
 let a2_t5 () =
   (* Multiple groups with some not matching *)
@@ -121,7 +122,8 @@ let a2_t6 () =
   (* Quantified group *)
   let re = regexp_compile "(ab)+" ~flags:"" in
   let result = RegExp.exec re "abab" in
-  assert_array (RegExp.captures result) [| "abab"; "ab" |]  (* last match of group *)
+  assert_array (RegExp.captures result) [| "abab"; "ab" |]
+(* last match of group *)
 
 let a2_t7 () =
   (* Group with alternation *)
@@ -134,7 +136,8 @@ let a2_t8 () =
   (* Non-capturing group *)
   let re = regexp_compile "(?:a)(b)" ~flags:"" in
   let result = RegExp.exec re "ab" in
-  assert_array (RegExp.captures result) [| "ab"; "b" |]  (* only one capture *)
+  assert_array (RegExp.captures result) [| "ab"; "b" |]
+(* only one capture *)
 
 let a2_t9 () =
   (* Complex pattern with groups *)
@@ -147,7 +150,8 @@ let a2_t10 () =
   (* Email-like pattern *)
   let re = regexp_compile "(\\w+)@(\\w+)\\.(\\w+)" ~flags:"" in
   let result = RegExp.exec re "email: test@example.com" in
-  assert_array (RegExp.captures result) [| "test@example.com"; "test"; "example"; "com" |]
+  assert_array (RegExp.captures result)
+    [| "test@example.com"; "test"; "example"; "com" |]
 
 (* ===================================================================
    S15.10.6.2_A3: Global flag and lastIndex
@@ -187,14 +191,15 @@ let a3_t2 () =
   assert_int (RegExp.index result1) 1;
 
   let result2 = RegExp.exec re input in
-  assert_int (RegExp.index result2) 1  (* same position *)
+  assert_int (RegExp.index result2) 1 (* same position *)
 
 let a3_t3 () =
   (* Manual lastIndex manipulation with global *)
   let re = regexp_compile "\\d+" ~flags:"g" in
   let input = "a1b22c333d" in
 
-  RegExp.setLastIndex re 3;  (* Start after "a1b" *)
+  RegExp.setLastIndex re 3;
+  (* Start after "a1b" *)
   let result = RegExp.exec re input in
   assert_array (RegExp.captures result) [| "22" |];
   assert_int (RegExp.index result) 3
@@ -251,11 +256,13 @@ let a3_t7 () =
   let input = "abc" in
 
   let result = RegExp.exec re input in
-  assert_array (RegExp.captures result) [||];  (* b is not at position 0 *)
+  assert_array (RegExp.captures result) [||];
 
+  (* b is not at position 0 *)
   RegExp.setLastIndex re 1;
   let result2 = RegExp.exec re input in
-  assert_array (RegExp.captures result2) [| "b" |]  (* now it matches *)
+  assert_array (RegExp.captures result2) [| "b" |]
+(* now it matches *)
 
 (* ===================================================================
    S15.10.6.2_A4: Named capture groups
@@ -278,7 +285,9 @@ let a4_t2 () =
 
 let a4_t3 () =
   (* Named groups with date pattern *)
-  let re = regexp_compile "(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})" ~flags:"" in
+  let re =
+    regexp_compile "(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})" ~flags:""
+  in
   let result = RegExp.exec re "2024-07-17" in
   assert_string (Option.get (RegExp.group "year" result)) "2024";
   assert_string (Option.get (RegExp.group "month" result)) "07";
@@ -303,7 +312,8 @@ let a4_t6 () =
   (* Mixed named and unnamed groups *)
   let re = regexp_compile "(\\d+)-(?<name>\\w+)-(\\d+)" ~flags:"" in
   let result = RegExp.exec re "123-test-456" in
-  assert_array (RegExp.captures result) [| "123-test-456"; "123"; "test"; "456" |];
+  assert_array (RegExp.captures result)
+    [| "123-test-456"; "123"; "test"; "456" |];
   assert_string (Option.get (RegExp.group "name" result)) "test"
 
 (* ===================================================================
@@ -392,7 +402,8 @@ let edge_alternation () =
   (* Alternation order *)
   let re = regexp_compile "abc|ab|a" ~flags:"" in
   let result = RegExp.exec re "abc" in
-  assert_array (RegExp.captures result) [| "abc" |]  (* first alternative wins *)
+  assert_array (RegExp.captures result) [| "abc" |]
+(* first alternative wins *)
 
 let edge_word_boundary () =
   (* Word boundary *)
@@ -423,7 +434,6 @@ let tests =
     test "S15.10.6.2_A1_T8: empty pattern" a1_t8;
     test "S15.10.6.2_A1_T9: case sensitivity" a1_t9;
     test "S15.10.6.2_A1_T10: special chars" a1_t10;
-
     (* A2: Capture groups *)
     test "S15.10.6.2_A2_T1: single group" a2_t1;
     test "S15.10.6.2_A2_T2: multiple groups" a2_t2;
@@ -435,16 +445,14 @@ let tests =
     test "S15.10.6.2_A2_T8: non-capturing group" a2_t8;
     test "S15.10.6.2_A2_T9: date pattern" a2_t9;
     test "S15.10.6.2_A2_T10: email pattern" a2_t10;
-
-    (* A3: Global flag and lastIndex - COMMENTED OUT DUE TO HANGING *)
-    (* test "S15.10.6.2_A3_T1: global iterates matches" a3_t1;
+    (* A3: Global flag and lastIndex *)
+    test "S15.10.6.2_A3_T1: global iterates matches" a3_t1;
     test "S15.10.6.2_A3_T2: without global" a3_t2;
     test "S15.10.6.2_A3_T3: manual lastIndex" a3_t3;
     test "S15.10.6.2_A3_T4: lastIndex beyond length" a3_t4;
     test "S15.10.6.2_A3_T5: iterate all matches" a3_t5;
     test "S15.10.6.2_A3_T6: sticky flag" a3_t6;
-    test "S15.10.6.2_A3_T7: sticky at position" a3_t7; *)
-
+    test "S15.10.6.2_A3_T7: sticky at position" a3_t7;
     (* A4: Named groups *)
     test "S15.10.6.2_A4_T1: basic named group" a4_t1;
     test "S15.10.6.2_A4_T2: multiple named groups" a4_t2;
@@ -452,12 +460,10 @@ let tests =
     test "S15.10.6.2_A4_T4: nonexistent group" a4_t4;
     test "S15.10.6.2_A4_T5: unmatched named group" a4_t5;
     test "S15.10.6.2_A4_T6: mixed groups" a4_t6;
-
     (* A5: Various patterns *)
     test "S15.10.6.2_A5_T1: start anchor" a5_t1;
     test "S15.10.6.2_A5_T2: end anchor" a5_t2;
     test "S15.10.6.2_A5_T3: multiline anchor" a5_t3;
-
     (* Edge cases *)
     test "edge: empty match" edge_empty_match;
     test "edge: unicode" edge_unicode;
@@ -470,4 +476,3 @@ let tests =
     test "edge: word boundary" edge_word_boundary;
     test "edge: dotall" edge_dotall;
   ]
-

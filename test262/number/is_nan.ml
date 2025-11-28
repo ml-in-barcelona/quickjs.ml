@@ -80,7 +80,6 @@ let tests =
     test "nan_from_operation: NaN from operations" nan_from_operation;
     test "nan_from_parseInt: NaN from parseInt" nan_from_parseint;
     test "nan_from_parseFloat: NaN from parseFloat" nan_from_parsefloat;
-
     (* Non-NaN values *)
     test "finite_numbers: finite numbers return false" finite_numbers;
     test "zero_values: zeros return false" zero_values;
@@ -88,4 +87,3 @@ let tests =
     test "max_min_values: extreme values return false" max_min_values;
     test "epsilon_value: epsilon returns false" epsilon_value;
   ]
-
