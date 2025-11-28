@@ -14,4 +14,5 @@ let () =
   | Ok re ->
       let result = Quickjs.RegExp.exec re "Today's date is 2024-07-17" in
       print_output (Quickjs.RegExp.captures result)
-  | Error (_, error) -> Printf.printf "Error: %s" error
+  | Error error ->
+      Printf.printf "Error: %s" (Quickjs.RegExp.compile_error_to_string error)

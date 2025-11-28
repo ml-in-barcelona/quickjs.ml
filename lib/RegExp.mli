@@ -4,18 +4,20 @@ type t
 type result
 (** The result of a executing a RegExp on a string *)
 
-val compile :
-  flags:string ->
-  string ->
-  ( t,
-    [ `Unexpected_end
-    | `Malformed_unicode_char
-    | `Invalid_escape_sequence
-    | `Nothing_to_repeat
-    | `Unknown of string ]
-    * string )
-  Stdlib.result
-(** Constructs a RegExp.t from a string describing a regex and their flags *)
+type compile_error =
+  [ `Unexpected_end
+  | `Malformed_unicode_char
+  | `Invalid_escape_sequence
+  | `Nothing_to_repeat
+  | `Unknown of string ]
+(** Possible errors when compiling a RegExp pattern *)
+
+val compile_error_to_string : compile_error -> string
+(** Convert a compile error to a human-readable string *)
+
+val compile : flags:string -> string -> (t, compile_error) Stdlib.result
+(** Constructs a RegExp.t from a string describing a regex and their flags.
+    Returns [Error (error_type, raw_message)] if compilation fails. *)
 
 val lastIndex : t -> int
 (** returns the index where the next match will start its search *)
@@ -55,6 +57,12 @@ val exec : t -> string -> result
 
 val captures : result -> string array
 (** an array of the match and captures *)
+
+val groups : result -> (string * string) list
+(** returns all named capture groups as a list of (name, value) pairs *)
+
+val group : string -> result -> string option
+(** returns the value of a named capture group, or None if not found *)
 
 val input : result -> string
 (** the original input string *)
