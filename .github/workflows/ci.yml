@@ -111,20 +111,3 @@ jobs:
           packages: 'quickjs'
           changelog: './CHANGES.md'
           github-token: ${{ secrets.GH_TOKEN }}
-
-  update-changelog:
-    name: Update changelog
-    needs: build
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: davesnx/dune-release-action/update-changelog@v0.3.0-beta
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          changelog: './CHANGES.md'
-          unreleased-header: '## Unreleased'
