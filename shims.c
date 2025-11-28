@@ -11,3 +11,8 @@ void *lre_realloc(void *opaque, void *ptr, size_t size)
 {
     return realloc(ptr, size);
 }
+
+int lre_check_timeout(void *opaque)
+{
+    return 0;
+}
