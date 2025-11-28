@@ -209,6 +209,22 @@ let () =
               assert_bool (RegExp.test regex "https://www.example.com") true;
               assert_bool (RegExp.test regex "http://example.com") true;
               assert_bool (RegExp.test regex "https://example") false);
+          test "unicode: [a-z] does not match unicode letters" (fun () ->
+              let regex = regexp_compile "^[a-z]+$" ~flags:"i" in
+              (* ASCII works *)
+              assert_bool (RegExp.test regex "car") true;
+              (* Unicode letters don't match [a-z] *)
+              assert_bool (RegExp.test regex "pão") false;
+              assert_bool (RegExp.test regex "知道") false;
+              assert_bool (RegExp.test regex "يعرف") false);
+          test "unicode: \\p{L} matches unicode letters" (fun () ->
+              let regex = regexp_compile "^\\p{L}+$" ~flags:"u" in
+              (* ASCII works *)
+              assert_bool (RegExp.test regex "car") true;
+              (* Unicode letters match with \p{L} and u flag *)
+              assert_bool (RegExp.test regex "pão") true;
+              assert_bool (RegExp.test regex "知道") true;
+              assert_bool (RegExp.test regex "يعرف") true);
         ] );
       ( "Error",
         [

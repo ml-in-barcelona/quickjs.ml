@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Full tests coverage from Official ECMAScript Conformance Test Suite for RegExp and Number
+- Support unicode in RegExp
+- Support named groups in RegExp
+- Implement parseFloat
+- Implement parseInt
+
 ## 0.1.2
 
 - Support for named groups
