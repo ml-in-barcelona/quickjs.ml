@@ -87,7 +87,7 @@ let a2_t7 () =
   assert_float (Number.parseFloat " \t\n\r3.14159") 3.14159
 
 let a2_t8 () =
-  (* Non-breaking space (U+00A0) *)
+  (* Non-breaking space (U+00A0) - JavaScript treats NBSP as whitespace in parseFloat *)
   assert_float (Number.parseFloat "\xC2\xA0123.5") 123.5
 
 let a2_t9 () =
@@ -193,8 +193,11 @@ let a5_t4 () =
 let a6 () =
   (* Multiple decimal points *)
   assert_float (Number.parseFloat "1.2.3") 1.2;
-  assert_float (Number.parseFloat "...3") 0.0;  (* starts with invalid char, but first . might be valid *)
-  assert_nan (Number.parseFloat "..3")  (* Actually this returns NaN in JS *)
+  (* In JavaScript, both "...3" and "..3" return NaN:
+     - First "." is valid but followed by another "." which stops parsing
+     - No valid digits found, so result is NaN *)
+  assert_nan (Number.parseFloat "...3");
+  assert_nan (Number.parseFloat "..3")
 
 let a7_5 () =
   (* Leading decimal point *)

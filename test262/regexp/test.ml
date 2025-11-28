@@ -106,7 +106,8 @@ let a1_t12 () =
   let re = regexp_compile "(ab)+" ~flags:"" in
   assert_bool (RegExp.test re "ab") true;
   assert_bool (RegExp.test re "abab") true;
-  assert_bool (RegExp.test re "aabb") false
+  (* "aabb" contains "ab" at position 1, so /(ab)+/.test("aabb") returns true *)
+  assert_bool (RegExp.test re "aabb") true
 
 let a1_t13 () =
   (* Optional group *)
@@ -173,9 +174,12 @@ let flag_s () =
   assert_bool (RegExp.test re_no_s "a\nb") false
 
 let flag_y () =
-  (* Sticky flag *)
+  (* Sticky flag - must reset lastIndex between tests because sticky flag
+     advances lastIndex after each successful match *)
   let re = regexp_compile "a" ~flags:"y" in
-  assert_bool (RegExp.test re "abc") true;  (* matches at position 0 *)
+  assert_bool (RegExp.test re "abc") true;  (* matches at position 0, lastIndex becomes 1 *)
+  (* Reset lastIndex to test from position 0 again *)
+  RegExp.setLastIndex re 0;
   assert_bool (RegExp.test re "bac") false  (* doesn't match at position 0 *)
 
 let flag_y_lastindex () =

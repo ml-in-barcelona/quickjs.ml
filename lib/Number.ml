@@ -12,18 +12,53 @@
    - Portable and easy to test
    - Matches JavaScript semantics exactly *)
 
-let is_whitespace c =
-  match c with
-  | ' ' | '\t' | '\n' | '\r' | '\x0b' | '\x0c' -> true
-  (* Unicode whitespace characters commonly handled *)
+(* Check if a Unicode code point is a JavaScript whitespace character.
+   Based on ECMAScript WhiteSpace and LineTerminator:
+   - WhiteSpace: TAB, VT, FF, SP, NBSP, ZWNBSP, and Unicode category "Zs"
+   - LineTerminator: LF, CR, LS, PS *)
+let is_unicode_whitespace uchar =
+  match Uchar.to_int uchar with
+  | 0x0009 (* Tab *)
+  | 0x000A (* LF *)
+  | 0x000B (* VT *)
+  | 0x000C (* FF *)
+  | 0x000D (* CR *)
+  | 0x0020 (* Space *)
+  | 0x00A0 (* NBSP *)
+  | 0x1680 (* Ogham Space Mark *)
+  | 0x2000 | 0x2001 | 0x2002 | 0x2003 | 0x2004
+  | 0x2005 | 0x2006 | 0x2007 | 0x2008 | 0x2009
+  | 0x200A (* Various spaces *)
+  | 0x2028 (* Line Separator *)
+  | 0x2029 (* Paragraph Separator *)
+  | 0x202F (* Narrow NBSP *)
+  | 0x205F (* Medium Mathematical Space *)
+  | 0x3000 (* Ideographic Space *)
+  | 0xFEFF (* BOM/ZWNBSP *) -> true
   | _ -> false
 
+(* Skip whitespace in a UTF-8 string, returning the byte index after whitespace *)
 let skip_whitespace s start =
   let len = String.length s in
-  let rec loop i =
-    if i >= len then i else if is_whitespace s.[i] then loop (i + 1) else i
+  let decoder = Uutf.decoder ~encoding:`UTF_8 (`String s) in
+  (* Skip to start position *)
+  let rec skip_to_start byte_pos =
+    if byte_pos >= start then byte_pos
+    else match Uutf.decode decoder with
+      | `Uchar _ -> skip_to_start (Uutf.decoder_byte_count decoder)
+      | `Malformed _ -> skip_to_start (Uutf.decoder_byte_count decoder)
+      | `End | `Await -> byte_pos
   in
-  loop start
+  let _ = skip_to_start 0 in
+  (* Now skip whitespace *)
+  let rec loop () =
+    let byte_pos = Uutf.decoder_byte_count decoder in
+    if byte_pos >= len then byte_pos
+    else match Uutf.decode decoder with
+      | `Uchar u when is_unicode_whitespace u -> loop ()
+      | `Uchar _ | `Malformed _ | `End | `Await -> byte_pos
+  in
+  loop ()
 
 let digit_value c radix =
   let v =

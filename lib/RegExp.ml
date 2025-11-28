@@ -80,13 +80,32 @@ let strlen ptr =
   in
   aux ptr 0
 
+(* Check if a string contains non-ASCII bytes that require Unicode mode in libregexp.
+   Any byte >= 0x80 indicates multi-byte UTF-8 which needs Unicode mode for proper matching. *)
+let needs_unicode_mode s =
+  let len = String.length s in
+  let rec check i =
+    if i >= len then false
+    else
+      let byte = Char.code s.[i] in
+      if byte >= 0x80 then true
+      else check (i + 1)
+  in
+  check 0
+
 let compile ~flags re =
   let compiled_byte_code_len = Ctypes.allocate Ctypes.int 0 in
   let size_of_error_msg = 64 in
   let error_msg = Ctypes.allocate_n ~count:size_of_error_msg Ctypes.char in
   let input = Ctypes.ocaml_string_start re in
   let input_length = String.length re |> Unsigned.Size_t.of_int in
-  let flags = parse_flags flags in
+  let parsed_flags = parse_flags flags in
+  (* Auto-enable Unicode mode for patterns containing 4-byte UTF-8 sequences
+     (code points >= U+10000, like emojis). libregexp requires this. *)
+  let flags =
+    if needs_unicode_mode re then parsed_flags lor lre_flag_unicode
+    else parsed_flags
+  in
   let compiled_byte_code =
     Bindings.C.Functions.lre_compile compiled_byte_code_len error_msg
       size_of_error_msg input input_length flags Ctypes.null
@@ -125,44 +144,114 @@ let group name result =
 
 let flags regexp = flags_to_string regexp.flags
 
+(* Convert UTF-8 string to UTF-16 code units (as uint8_t pairs, little-endian) *)
+let utf8_to_utf16_bytes s =
+  let decoder = Uutf.decoder ~encoding:`UTF_8 (`String s) in
+  let buf = Buffer.create (String.length s * 2) in
+  let add_u16 code =
+    Buffer.add_char buf (Char.chr (code land 0xFF));
+    Buffer.add_char buf (Char.chr ((code lsr 8) land 0xFF))
+  in
+  let rec loop () =
+    match Uutf.decode decoder with
+    | `Uchar u ->
+        let code = Uchar.to_int u in
+        if code < 0x10000 then add_u16 code
+        else begin
+          (* Surrogate pair for code points >= 0x10000 *)
+          let code' = code - 0x10000 in
+          add_u16 (0xD800 lor (code' lsr 10));
+          add_u16 (0xDC00 lor (code' land 0x3FF))
+        end;
+        loop ()
+    | `End -> Buffer.contents buf
+    | `Malformed _ ->
+        add_u16 0xFFFD; (* Replacement character *)
+        loop ()
+    | `Await -> assert false
+  in
+  loop ()
+
+(* Build a mapping from UTF-16 code unit index to UTF-8 byte index *)
+let build_utf16_to_utf8_map s =
+  let decoder = Uutf.decoder ~encoding:`UTF_8 (`String s) in
+  let map = ref [] in
+  let utf16_idx = ref 0 in
+  let rec loop () =
+    let byte_idx = Uutf.decoder_byte_count decoder in
+    match Uutf.decode decoder with
+    | `Uchar u ->
+        map := (!utf16_idx, byte_idx) :: !map;
+        let code = Uchar.to_int u in
+        if code < 0x10000 then incr utf16_idx
+        else utf16_idx := !utf16_idx + 2; (* Surrogate pair *)
+        loop ()
+    | `End ->
+        map := (!utf16_idx, byte_idx) :: !map;
+        Array.of_list (List.rev !map)
+    | `Malformed _ ->
+        map := (!utf16_idx, byte_idx) :: !map;
+        incr utf16_idx;
+        loop ()
+    | `Await -> assert false
+  in
+  loop ()
+
+(* Convert UTF-16 index to UTF-8 byte index using the map *)
+let utf16_to_utf8_index map utf16_idx =
+  (* Binary search or linear scan *)
+  let rec find i =
+    if i >= Array.length map then
+      snd map.(Array.length map - 1)
+    else
+      let (u16, u8) = map.(i) in
+      if u16 = utf16_idx then u8
+      else if u16 > utf16_idx then
+        if i = 0 then 0 else snd map.(i - 1)
+      else find (i + 1)
+  in
+  find 0
+
 (* exec is not a binding to lre_exec but an implementation of `js_regexp_exec` *)
 let exec regexp input =
   let capture_count = Bindings.C.Functions.lre_get_capture_count regexp.bc in
   let capture_size = capture_count * 2 in
   let capture = Ctypes.CArray.make (Ctypes.ptr Ctypes.uint8_t) capture_size in
   let start_capture = Ctypes.CArray.start capture in
-  let matching_length = String.length input in
-  let bufp =
-    Ctypes.CArray.of_list Ctypes.char (input |> String.to_seq |> List.of_seq)
-  in
-  let buffer =
-    Ctypes.coerce (Ctypes.ptr Ctypes.char)
-      (Ctypes.ptr Ctypes.uint8_t)
-      (Ctypes.CArray.start bufp)
+
+  (* Check if we need Unicode mode (pattern has non-ASCII or unicode flag) *)
+  let use_unicode = unicode regexp || needs_unicode_mode regexp.source ||
+                    needs_unicode_mode input in
+
+  let buffer, matching_length, shift, utf16_map =
+    if use_unicode then begin
+      (* Convert UTF-8 input to UTF-16 for proper Unicode matching *)
+      let utf16_str = utf8_to_utf16_bytes input in
+      let utf16_len = String.length utf16_str in
+      let bytes_list =
+        List.init utf16_len (fun i ->
+            Unsigned.UInt8.of_int (Char.code utf16_str.[i]))
+      in
+      let bufp = Ctypes.CArray.of_list Ctypes.uint8_t bytes_list in
+      let map = build_utf16_to_utf8_map input in
+      (Ctypes.CArray.start bufp, utf16_len / 2, 1, Some map)
+    end else begin
+      (* ASCII-only: use bytes directly *)
+      let bytes_list =
+        List.init (String.length input) (fun i ->
+            Unsigned.UInt8.of_int (Char.code input.[i]))
+      in
+      let bufp = Ctypes.CArray.of_list Ctypes.uint8_t bytes_list in
+      (Ctypes.CArray.start bufp, String.length input, 0, None)
+    end
   in
 
   let lastIndex =
-    (* if ((re_flags & (LRE_FLAG_GLOBAL | LRE_FLAG_STICKY)) == 0) {
-           last_index = 0;
-       } *)
     match global regexp || sticky regexp with
     | true -> regexp.lastIndex
     | false -> 0
   in
 
-  (* TODO: Support `str->is_wide_char`. Possible solution: (install uutf)
-       open Uchar
-
-     let is_wide_char (c : char) : bool =
-       let uchar = Uchar.of_char c in
-       match uchar with
-       | `Uchar uchar -> Uucp.Break.tty_width (Uucp.Break.tty_properties uchar) = 2
-       | _ -> false *)
-  let shift = 0 in
-
-  (* Return 1 if match, 0 if not match or -1 if error. cindex is the
-     starting position of the match and must be such as 0 <= cindex <=
-     clen. *)
   let exec_result =
     Bindings.C.Functions.lre_exec start_capture regexp.bc buffer lastIndex
       matching_length shift Ctypes.null
@@ -180,14 +269,29 @@ let exec regexp input =
       while !i < capture_size - 1 do
         let start_ptr = Ctypes.CArray.get capture !i in
         let end_ptr = Ctypes.CArray.get capture (!i + 1) in
-        let start_index = Ctypes.ptr_diff buffer start_ptr in
-        let length = Ctypes.ptr_diff start_ptr end_ptr in
-        (* JS_DefinePropertyValue(ctx, obj, JS_ATOM_index, JS_NewInt32(ctx, (capture[0] - str_buf) >> shift), prop_flags) *)
-        index := start_index;
+        let raw_start = Ctypes.ptr_diff buffer start_ptr in
+        let raw_length = Ctypes.ptr_diff start_ptr end_ptr in
+
+        (* Convert indices based on mode *)
+        let start_index, length =
+          match utf16_map with
+          | Some map ->
+              (* UTF-16 mode: convert indices back to UTF-8 byte positions *)
+              let u16_start = raw_start / 2 in
+              let u16_end = u16_start + (raw_length / 2) in
+              let u8_start = utf16_to_utf8_index map u16_start in
+              let u8_end = utf16_to_utf8_index map u16_end in
+              (u8_start, u8_end - u8_start)
+          | None ->
+              (* ASCII mode: indices are byte positions *)
+              (raw_start, raw_length)
+        in
+
+        (* Only set index on first capture (the full match) *)
+        if !i = 0 then index := start_index;
         let substring =
           match String.sub input start_index length with
           | sub -> sub
-          (* goto fail which foes JS_FreeValue str_val means there's a null in the result *)
           | exception _ -> ""
         in
         (* Store the captured substring *)
