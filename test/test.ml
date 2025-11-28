@@ -1,4 +1,5 @@
 module RegExp = Quickjs.RegExp
+module Number = Quickjs.Number
 
 let test title fn = Alcotest.test_case title `Quick fn
 
@@ -231,5 +232,109 @@ let () =
           test "[a-z[]" (fun () ->
               let regex = regexp_compile "[a-z[]" ~flags:"" in
               assert_string (RegExp.source regex) "[a-z[]");
+        ] );
+      ( "Number.parseInt",
+        [
+          test "basic decimal" (fun () ->
+              assert_float (Number.parseInt "123") 123.0;
+              assert_float (Number.parseInt "  123") 123.0;
+              assert_float (Number.parseInt "  123r") 123.0;
+              assert_float (Number.parseInt "0") 0.0);
+          test "with sign" (fun () ->
+              assert_float (Number.parseInt "-123") (-123.0);
+              assert_float (Number.parseInt "+123") 123.0;
+              assert_float (Number.parseInt "  -123") (-123.0));
+          test "hexadecimal" (fun () ->
+              assert_float (Number.parseInt "0x123") 291.0;
+              assert_float (Number.parseInt "0X123") 291.0;
+              assert_float (Number.parseInt "0xff") 255.0;
+              assert_float (Number.parseInt "0xFF") 255.0);
+          test "with radix" (fun () ->
+              assert_float (Number.parseInt ~radix:16 "ff") 255.0;
+              assert_float (Number.parseInt ~radix:2 "1010") 10.0;
+              assert_float (Number.parseInt ~radix:8 "77") 63.0;
+              assert_float (Number.parseInt ~radix:36 "z") 35.0);
+          test "radix 16 with 0x prefix" (fun () ->
+              assert_float (Number.parseInt ~radix:16 "0xff") 255.0);
+          test "invalid radix returns NaN" (fun () ->
+              assert_nan (Number.parseInt ~radix:1 "123");
+              assert_nan (Number.parseInt ~radix:37 "123"));
+          test "no valid digits returns NaN" (fun () ->
+              assert_nan (Number.parseInt "abc");
+              assert_nan (Number.parseInt "");
+              assert_nan (Number.parseInt "   "));
+          test "octal prefix not supported by default" (fun () ->
+              (* JavaScript's parseInt does not auto-detect octal with 0o prefix *)
+              assert_float (Number.parseInt "0o123") 0.0);
+          test "stops at invalid character" (fun () ->
+              assert_float (Number.parseInt "123abc") 123.0;
+              assert_float (Number.parseInt "12.34") 12.0);
+        ] );
+      ( "Number.parseFloat",
+        [
+          test "basic decimal" (fun () ->
+              assert_float (Number.parseFloat "123") 123.0;
+              assert_float (Number.parseFloat "  123") 123.0;
+              assert_float (Number.parseFloat "123.456") 123.456;
+              assert_float (Number.parseFloat "0.5") 0.5);
+          test "with sign" (fun () ->
+              assert_float (Number.parseFloat "-123.456") (-123.456);
+              assert_float (Number.parseFloat "+123.456") 123.456;
+              assert_float (Number.parseFloat "-.5") (-0.5));
+          test "scientific notation" (fun () ->
+              assert_float (Number.parseFloat "1e10") 1e10;
+              assert_float (Number.parseFloat "1E10") 1e10;
+              assert_float (Number.parseFloat "1.5e-3") 0.0015;
+              assert_float (Number.parseFloat "123.2e3") 123200.0);
+          test "Infinity" (fun () ->
+              assert_float (Number.parseFloat "Infinity") infinity;
+              assert_float (Number.parseFloat "-Infinity") neg_infinity;
+              assert_float (Number.parseFloat "  Infinity") infinity);
+          test "no valid number returns NaN" (fun () ->
+              assert_nan (Number.parseFloat "abc");
+              assert_nan (Number.parseFloat "");
+              assert_nan (Number.parseFloat "   "));
+          test "hexadecimal returns 0" (fun () ->
+              (* JavaScript parseFloat does not parse hex *)
+              assert_float (Number.parseFloat "0x1234") 0.0);
+          test "stops at invalid character" (fun () ->
+              assert_float (Number.parseFloat "123abc") 123.0;
+              assert_float (Number.parseFloat "123.456xyz") 123.456);
+          test "leading dot" (fun () ->
+              assert_float (Number.parseFloat ".5") 0.5;
+              assert_float (Number.parseFloat ".123e2") 12.3);
+        ] );
+      ( "Number.isNaN",
+        [
+          test "returns true for NaN" (fun () ->
+              assert_bool (Number.isNaN nan) true;
+              assert_bool (Number.isNaN (Number.parseInt "abc")) true);
+          test "returns false for numbers" (fun () ->
+              assert_bool (Number.isNaN 0.0) false;
+              assert_bool (Number.isNaN infinity) false;
+              assert_bool (Number.isNaN neg_infinity) false;
+              assert_bool (Number.isNaN 123.456) false);
+        ] );
+      ( "Number.isFinite",
+        [
+          test "returns true for finite numbers" (fun () ->
+              assert_bool (Number.isFinite 0.0) true;
+              assert_bool (Number.isFinite 123.456) true;
+              assert_bool (Number.isFinite (-123.456)) true);
+          test "returns false for non-finite values" (fun () ->
+              assert_bool (Number.isFinite nan) false;
+              assert_bool (Number.isFinite infinity) false;
+              assert_bool (Number.isFinite neg_infinity) false);
+        ] );
+      ( "Number.isInteger",
+        [
+          test "returns true for integers" (fun () ->
+              assert_bool (Number.isInteger 0.0) true;
+              assert_bool (Number.isInteger 123.0) true;
+              assert_bool (Number.isInteger (-123.0)) true);
+          test "returns false for non-integers" (fun () ->
+              assert_bool (Number.isInteger 123.456) false;
+              assert_bool (Number.isInteger nan) false;
+              assert_bool (Number.isInteger infinity) false);
         ] );
     ]
