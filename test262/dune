@@ -1,0 +1,13 @@
+(include_subdirs qualified)
+
+(library
+ (name alcotest_extra)
+ (libraries alcotest quickjs)
+ (modules alcotest_extra))
+
+(test
+ (name test262)
+ (libraries alcotest quickjs alcotest_extra)
+ (modules :standard \ alcotest_extra)
+ (flags
+  (:standard -open Alcotest_extra)))
