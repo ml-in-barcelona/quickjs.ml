@@ -9,7 +9,7 @@ type matchResult = {
   captures : string array;
   input : string;
   index : int;
-  groups : string list; [@warning "-69"] (* groups is unused, but will be *)
+  groups : (string * string) list;
 }
 
 type result = (matchResult, string) Stdlib.result
@@ -80,8 +80,6 @@ let strlen ptr =
   in
   aux ptr 0
 
-let string_from_ptr ptr = Ctypes.string_from_ptr ~length:(strlen ptr) ptr
-
 let compile ~flags re =
   let compiled_byte_code_len = Ctypes.allocate Ctypes.int 0 in
   let size_of_error_msg = 64 in
@@ -116,6 +114,14 @@ let setLastIndex regexp lastIndex = regexp.lastIndex <- lastIndex
 
 let captures result =
   match result with Ok result -> result.captures | Error _ -> [||]
+
+let groups result =
+  match result with Ok result -> result.groups | Error _ -> []
+
+let group name result =
+  match result with
+  | Ok result -> List.assoc_opt name result.groups
+  | Error _ -> None
 
 let flags regexp = flags_to_string regexp.flags
 
@@ -199,13 +205,15 @@ let exec regexp input =
                   goto fail;
               }
             *)
-            (* store the group name *)
-            let current_group_name = string_from_ptr pointer in
-            groups := current_group_name :: !groups;
+            (* store the group name and its captured value, but only if named *)
+            let name_len = strlen pointer in
+            (if name_len > 0 then
+               let current_group_name =
+                 Ctypes.string_from_ptr ~length:name_len pointer
+               in
+               groups := (current_group_name, substring) :: !groups);
             (* group_name_ptr += strlen(group_name_ptr) + 1; *)
-            let next_group_name_ptr =
-              Ctypes.( +@ ) pointer (strlen pointer + 1)
-            in
+            let next_group_name_ptr = Ctypes.( +@ ) pointer (name_len + 1) in
             if Ctypes.is_null next_group_name_ptr then group_name_ptr := None
             else group_name_ptr := Some next_group_name_ptr
         | None | Some _ -> ());

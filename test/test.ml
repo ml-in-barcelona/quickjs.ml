@@ -12,6 +12,12 @@ let assert_string left right =
 
 let assert_bool left right = Alcotest.(check bool) "should be equal" right left
 
+let assert_float left right =
+  Alcotest.(check (float 0.0001)) "should be equal" right left
+
+let assert_nan value =
+  Alcotest.(check bool) "should be NaN" true (Float.is_nan value)
+
 let regexp_compile re ~flags =
   match RegExp.compile re ~flags with
   | Ok regexp -> regexp
@@ -26,9 +32,9 @@ let regexp_no_compile re ~flags =
   | Error (_, error) -> error
 
 let () =
-  Alcotest.run "RegExp"
+  Alcotest.run "quickjs"
     [
-      ( "Success",
+      ( "RegExp",
         [
           test "flags" (fun () ->
               let regex = regexp_compile "\\d" ~flags:"" in
@@ -115,7 +121,6 @@ let () =
               let result = RegExp.exec regex input in
               assert_result (RegExp.captures result) [| "xyz"; "xyz" |]);
           test "named groups" (fun () ->
-              (* TODO: Support named groups in melange.js and make them available within the result *)
               let regex =
                 regexp_compile "(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})"
                   ~flags:""
@@ -123,7 +128,50 @@ let () =
               let input = "Today's date is 2024-07-17" in
               let result = RegExp.exec regex input in
               assert_result (RegExp.captures result)
-                [| "2024-07-17"; "2024"; "07"; "17" |]);
+                [| "2024-07-17"; "2024"; "07"; "17" |];
+              (* Test accessing groups by name *)
+              assert_string (Option.get (RegExp.group "year" result)) "2024";
+              assert_string (Option.get (RegExp.group "month" result)) "07";
+              assert_string (Option.get (RegExp.group "day" result)) "17";
+              (* Test that non-existent group returns None *)
+              assert_bool (Option.is_none (RegExp.group "hour" result)) true;
+              (* Test groups function returns all named groups *)
+              let groups = RegExp.groups result in
+              assert_int (List.length groups) 3);
+          test "named groups with global flag" (fun () ->
+              let regex = regexp_compile "(?<word>\\w+)" ~flags:"g" in
+              let input = "hello world" in
+              let result = RegExp.exec regex input in
+              assert_string (Option.get (RegExp.group "word" result)) "hello";
+              let result = RegExp.exec regex input in
+              assert_string (Option.get (RegExp.group "word" result)) "world");
+          test "mixed named and unnamed groups" (fun () ->
+              let regex =
+                regexp_compile "(\\d+)-(?<name>\\w+)-(\\d+)" ~flags:""
+              in
+              let input = "123-test-456" in
+              let result = RegExp.exec regex input in
+              assert_result (RegExp.captures result)
+                [| "123-test-456"; "123"; "test"; "456" |];
+              (* Only the named group should be in groups *)
+              assert_string (Option.get (RegExp.group "name" result)) "test";
+              let groups = RegExp.groups result in
+              assert_int (List.length groups) 1);
+          test "no named groups returns empty list" (fun () ->
+              let regex = regexp_compile "(\\d+)" ~flags:"" in
+              let input = "123" in
+              let result = RegExp.exec regex input in
+              assert_result (RegExp.captures result) [| "123"; "123" |];
+              let groups = RegExp.groups result in
+              assert_int (List.length groups) 0);
+          test "no match returns empty groups" (fun () ->
+              let regex = regexp_compile "(?<num>\\d+)" ~flags:"" in
+              let input = "no numbers here" in
+              let result = RegExp.exec regex input in
+              assert_result (RegExp.captures result) [||];
+              let groups = RegExp.groups result in
+              assert_int (List.length groups) 0;
+              assert_bool (Option.is_none (RegExp.group "num" result)) true);
           test "index" (fun () ->
               let regex = regexp_compile "World" ~flags:"" in
               let input = "Hello World" in

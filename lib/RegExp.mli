@@ -56,6 +56,12 @@ val exec : t -> string -> result
 val captures : result -> string array
 (** an array of the match and captures *)
 
+val groups : result -> (string * string) list
+(** returns all named capture groups as a list of (name, value) pairs *)
+
+val group : string -> result -> string option
+(** returns the value of a named capture group, or None if not found *)
+
 val input : result -> string
 (** the original input string *)
 
