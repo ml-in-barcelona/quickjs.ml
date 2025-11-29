@@ -1,7 +1,7 @@
 (** TC39 Test262 Specification Tests for quickjs.ml
 
-    This test suite is based on https://github.com/tc39/test262
-    Tests are manually translated from JavaScript to OCaml.
+    This test suite is based on https://github.com/tc39/test262 Tests are
+    manually translated from JavaScript to OCaml.
 
     Structure mirrors tc39/test262/test/built-ins/ *)
 

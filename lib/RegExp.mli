@@ -23,7 +23,8 @@ val lastIndex : t -> int
 (** returns the index where the next match will start its search *)
 
 val setLastIndex : t -> int -> unit
-(** sets the index at which the next match (RegExp.exec or RegExp.test) will start its search from *)
+(** sets the index at which the next match (RegExp.exec or RegExp.test) will
+    start its search from *)
 
 val flags : t -> string
 (** returns the enabled flags as a string *)
@@ -50,7 +51,8 @@ val source : t -> string
 (** returns the regexp pattern as a string *)
 
 val test : t -> string -> bool
-(** checks whether the given RegExp.t will match (or not match) a given string *)
+(** checks whether the given RegExp.t will match (or not match) a given string
+*)
 
 val exec : t -> string -> result
 (** executes a search on a given string using the given RegExp.t *)
@@ -68,4 +70,5 @@ val input : result -> string
 (** the original input string *)
 
 val index : result -> int
-(** sets the index at which the next match (RegExp.exec or RegExp.test) will start its search from *)
+(** sets the index at which the next match (RegExp.exec or RegExp.test) will
+    start its search from *)

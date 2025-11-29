@@ -1,6 +1,7 @@
 (** TC39 Test262: RegExp.prototype.source tests
 
-    Based on: https://github.com/tc39/test262/tree/main/test/built-ins/RegExp/prototype/source
+    Based on:
+    https://github.com/tc39/test262/tree/main/test/built-ins/RegExp/prototype/source
 
     ECMA-262 Section: RegExp.prototype.source
 

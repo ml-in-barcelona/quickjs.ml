@@ -1,6 +1,7 @@
 (** TC39 Test262: RegExp flag property tests
 
-    Based on: https://github.com/tc39/test262/tree/main/test/built-ins/RegExp/prototype/
+    Based on:
+    https://github.com/tc39/test262/tree/main/test/built-ins/RegExp/prototype/
 
     Tests for:
     - RegExp.prototype.flags (string accessor)
