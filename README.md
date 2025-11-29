@@ -15,7 +15,3 @@ The purpose of this project is to provide the same behaviour as the JavaScript e
 ### Documentation
 
 [API reference](https://ml-in-barcelona.github.io/quickjs.ml/docs/local/quickjs/index.html)
-
-### Status
-
-This is a work in progress, and currently only includes bindings to `RegExp` (binded to `libregexp`) check the [`to bind` issues](https://github.com/ml-in-barcelona/quickjs.ml/issues?q=is%3Aissue+is%3Aopen+sort%3Aupdated-desc+label%3A%22to+bind%22) from the issue tracker.
