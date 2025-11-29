@@ -1,4 +1,4 @@
-(** TC39 Test262: RegExp.prototype.source tests
+(* TC39 Test262: RegExp.prototype.source tests
 
     Based on:
     https://github.com/tc39/test262/tree/main/test/built-ins/RegExp/prototype/source
@@ -8,10 +8,6 @@
     The source property returns the text of the pattern. *)
 
 module RegExp = Quickjs.RegExp
-
-(* ===================================================================
-   Basic source property tests
-   =================================================================== *)
 
 let source_simple () =
   (* Simple pattern *)

@@ -1,4 +1,4 @@
-(** TC39 Test262: RegExp.prototype.test tests
+(* TC39 Test262: RegExp.prototype.test tests
 
     Based on: https://github.com/tc39/test262/tree/main/test/built-ins/RegExp/prototype/test
 
@@ -9,10 +9,8 @@
 
 module RegExp = Quickjs.RegExp
 
-(* ===================================================================
-   S15.10.6.3_A1: Basic test functionality
-   Returns true if the pattern matches, false otherwise
-   =================================================================== *)
+(* S15.10.6.3_A1: Basic test functionality *)
+(* Returns true if the pattern matches, false otherwise *)
 
 let a1_t1 () =
   (* Simple pattern match *)
@@ -137,9 +135,7 @@ let a1_t15 () =
   assert_bool (RegExp.test re "\n") true;
   assert_bool (RegExp.test re "abc") false
 
-(* ===================================================================
-   Flag behavior with test()
-   =================================================================== *)
+(* Flag behavior with test() *)
 
 let flag_i () =
   (* Case insensitive flag *)
@@ -195,9 +191,7 @@ let flag_y_lastindex () =
   (* matches at position 1 *)
   assert_int (RegExp.lastIndex re) 2
 
-(* ===================================================================
-   Edge cases
-   =================================================================== *)
+(* Edge cases *)
 
 let special_chars () =
   (* Special regex characters in pattern *)

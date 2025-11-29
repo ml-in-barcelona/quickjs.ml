@@ -1,4 +1,4 @@
-(** TC39 Test262: RegExp.prototype.exec tests
+(* TC39 Test262: RegExp.prototype.exec tests
 
     Based on: https://github.com/tc39/test262/tree/main/test/built-ins/RegExp/prototype/exec
 

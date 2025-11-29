@@ -1,4 +1,4 @@
-(** TC39 Test262: RegExp compile error tests
+(* TC39 Test262: RegExp compile error tests
 
     Based on: https://github.com/tc39/test262/tree/main/test/built-ins/RegExp
 
