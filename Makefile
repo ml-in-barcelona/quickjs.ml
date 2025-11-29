@@ -94,12 +94,3 @@ documentation-watch: ## Generate odoc documentation
 .PHONY: documentation-serve
 documentation-serve: documentation ## Open odoc documentation with default web browser
 	open _build/default/_doc_new/html/docs/local/quickjs/index.html
-
-.PHONY: release
-release: ## Create and push a release tag (usage: make release VERSION=1.0.0)
-	@if [ -z "$(VERSION)" ]; then \
-		echo "Error: VERSION is required"; \
-		echo "Usage: make release VERSION=1.0.0"; \
-		exit 1; \
-	fi
-	@.github/scripts/create-release.sh $(VERSION)
