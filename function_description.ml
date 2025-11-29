@@ -45,7 +45,7 @@ module Functions (F : Ctypes.FOREIGN) = struct
       (Ctypes.ptr Ctypes.uint8_t @-> F.returning Ctypes.int)
 
   let lre_get_groupnames =
-    F.foreign "lre_get_groupnames"
+    F.foreign "lre_get_groupnames_shim"
       (* const uint8_t *bc_buf *)
       (Ctypes.ptr Ctypes.uint8_t @-> F.returning (Ctypes.ptr_opt Ctypes.char))
 
@@ -87,8 +87,8 @@ module Functions (F : Ctypes.FOREIGN) = struct
     F.foreign "lre_case_conv"
       (* uint32_t *res *)
       (Ctypes.ptr Ctypes.uint32_t
-      (* uint32_t c *)
-      @-> Ctypes.uint32_t
+     (* uint32_t c *)
+     @-> Ctypes.uint32_t
       (* int conv_type: 0=upper, 1=lower, 2=case_folding *)
       @-> Ctypes.int
       @-> F.returning Ctypes.int)
@@ -97,8 +97,8 @@ module Functions (F : Ctypes.FOREIGN) = struct
     F.foreign "lre_canonicalize"
       (* uint32_t c *)
       (Ctypes.uint32_t
-      (* int is_unicode *)
-      @-> Ctypes.int
+     (* int is_unicode *)
+     @-> Ctypes.int
       @-> F.returning Ctypes.int)
 
   (* Unicode - Normalization (via C shim) *)
@@ -107,8 +107,8 @@ module Functions (F : Ctypes.FOREIGN) = struct
     F.foreign "unicode_normalize_shim"
       (* const uint32_t *src *)
       (Ctypes.ptr Ctypes.uint32_t
-      (* int src_len *)
-      @-> Ctypes.int
+     (* int src_len *)
+     @-> Ctypes.int
       (* int n_type: 0=NFC, 1=NFD, 2=NFKC, 3=NFKD *)
       @-> Ctypes.int
       (* uint32_t **pdst - output buffer pointer *)
@@ -120,4 +120,104 @@ module Functions (F : Ctypes.FOREIGN) = struct
     F.foreign "unicode_normalize_free"
       (* uint32_t *ptr *)
       (Ctypes.ptr Ctypes.uint32_t @-> F.returning Ctypes.void)
+
+  (* dtoa - Double to String conversion *)
+
+  let js_dtoa_max_len =
+    F.foreign "js_dtoa_max_len"
+      (* double d *)
+      (Ctypes.double
+     (* int radix *)
+     @-> Ctypes.int
+      (* int n_digits *)
+      @-> Ctypes.int
+      (* int flags *)
+      @-> Ctypes.int
+      @-> F.returning Ctypes.int)
+
+  let js_dtoa =
+    F.foreign "js_dtoa"
+      (* char *buf *)
+      (Ctypes.ptr Ctypes.char
+     (* double d *)
+     @-> Ctypes.double
+      (* int radix *)
+      @-> Ctypes.int
+      (* int n_digits *)
+      @-> Ctypes.int
+      (* int flags *)
+      @-> Ctypes.int
+      (* JSDTOATempMem *tmp_mem *)
+      @-> Ctypes.ptr Ctypes.void
+      @-> F.returning Ctypes.int)
+
+  (* atod - String to Double conversion *)
+
+  let js_atod =
+    F.foreign "js_atod_shim"
+      (* const char *str *)
+      (Ctypes.string
+      (* char **pnext *)
+      @-> Ctypes.ptr (Ctypes.ptr Ctypes.char)
+      (* int radix *)
+      @-> Ctypes.int
+      (* int flags *)
+      @-> Ctypes.int
+      (* JSATODTempMem *tmp_mem *)
+      @-> Ctypes.ptr Ctypes.void
+      @-> F.returning Ctypes.double)
+
+  (* Integer to String conversion *)
+
+  let u32toa =
+    F.foreign "u32toa"
+      (* char *buf *)
+      (Ctypes.ptr Ctypes.char
+     (* uint32_t n *)
+     @-> Ctypes.uint32_t
+      @-> F.returning Ctypes.size_t)
+
+  let i32toa =
+    F.foreign "i32toa"
+      (* char *buf *)
+      (Ctypes.ptr Ctypes.char
+     (* int32_t n *)
+     @-> Ctypes.int32_t
+      @-> F.returning Ctypes.size_t)
+
+  let u64toa =
+    F.foreign "u64toa"
+      (* char *buf *)
+      (Ctypes.ptr Ctypes.char
+     (* uint64_t n *)
+     @-> Ctypes.uint64_t
+      @-> F.returning Ctypes.size_t)
+
+  let i64toa =
+    F.foreign "i64toa"
+      (* char *buf *)
+      (Ctypes.ptr Ctypes.char
+     (* int64_t n *)
+     @-> Ctypes.int64_t
+      @-> F.returning Ctypes.size_t)
+
+  let u64toa_radix =
+    F.foreign "u64toa_radix"
+      (* char *buf *)
+      (Ctypes.ptr Ctypes.char
+     (* uint64_t n *)
+     @-> Ctypes.uint64_t
+      (* unsigned int radix *)
+      @-> Ctypes.uint
+      @-> F.returning Ctypes.size_t)
+
+  let i64toa_radix =
+    F.foreign "i64toa_radix"
+      (* char *buf *)
+      (Ctypes.ptr Ctypes.char
+     (* int64_t n *)
+     @-> Ctypes.int64_t
+      (* int radix *)
+      @-> Ctypes.int
+      @-> F.returning Ctypes.size_t)
 end

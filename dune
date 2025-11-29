@@ -12,7 +12,8 @@
  (ctypes
   (external_library_name libregexp)
   (headers
-   (preamble "#include \"cutils.h\"\n#include \"libregexp.h\"\n#include \"libunicode.h\"\n#include \"shims.h\""))
+   (preamble
+    "#include \"cutils.h\"\n#include \"libregexp.h\"\n#include \"libunicode.h\"\n#include \"dtoa.h\"\n#include \"shims.h\"\n"))
   (build_flags_resolver
    (vendored
     (c_flags "-Iquickjs")))
@@ -36,4 +37,4 @@
  (foreign_library
   (archive_name quickjs)
   (language c)
-  (names libregexp libunicode cutils shims)))
+  (names libregexp libunicode cutils dtoa shims)))

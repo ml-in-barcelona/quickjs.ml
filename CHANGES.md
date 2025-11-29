@@ -1,5 +1,9 @@
 # Changes
 
+## 0.2.1
+
+- Bind to dtoa (Dtoa, Atod, IntToString)
+
 ## 0.2.0
 
 - Full tests coverage from Official ECMAScript Conformance Test Suite for RegExp

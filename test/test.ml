@@ -1,5 +1,6 @@
 module RegExp = Quickjs.RegExp
 module Unicode = Quickjs.Unicode
+module Dtoa = Quickjs.Dtoa
 
 let test title fn = Alcotest.test_case title `Quick fn
 
@@ -12,6 +13,12 @@ let assert_string left right =
   Alcotest.(check string) "should be equal" right left
 
 let assert_bool left right = Alcotest.(check bool) "should be equal" right left
+
+let _assert_float left right =
+  Alcotest.(check (float 0.0)) "should be equal" right left
+
+let assert_float_opt left right =
+  Alcotest.(check (option (float 0.0))) "should be equal" right left
 
 let regexp_compile re ~flags =
   match RegExp.compile re ~flags with
@@ -287,7 +294,8 @@ let () =
           test "digits cannot start identifiers" (fun () ->
               assert_bool (Unicode.is_id_start (Uchar.of_char '0')) false;
               assert_bool (Unicode.is_id_start (Uchar.of_char '9')) false);
-          test "underscore and dollar - Unicode ID_Start excludes them" (fun () ->
+          test "underscore and dollar - Unicode ID_Start excludes them"
+            (fun () ->
               (* Note: Unicode ID_Start does NOT include _ and $
                  JavaScript adds them as special cases *)
               assert_bool (Unicode.is_id_start (Uchar.of_char '_')) false;
@@ -386,20 +394,27 @@ let () =
           test "unicode mode: lowercase stays same" (fun () ->
               let result = Unicode.canonicalize (Uchar.of_char 'a') in
               assert_bool (result = Uchar.of_char 'a') true);
-          test "non-unicode mode: lowercase to uppercase (legacy behavior)" (fun () ->
+          test "non-unicode mode: lowercase to uppercase (legacy behavior)"
+            (fun () ->
               (* In non-unicode mode, lre_canonicalize converts lowercase to uppercase *)
-              let result = Unicode.canonicalize ~unicode:false (Uchar.of_char 'a') in
+              let result =
+                Unicode.canonicalize ~unicode:false (Uchar.of_char 'a')
+              in
               assert_bool (result = Uchar.of_char 'A') true);
         ] );
       ( "Unicode.normalize",
         [
           test "NFC: composed form" (fun () ->
               (* café with combining acute (U+0301) should compose to é (U+00E9) *)
-              let decomposed = "cafe\xCC\x81" in (* café with combining acute *)
+              let decomposed = "cafe\xCC\x81" in
+              (* café with combining acute *)
               let result = Unicode.normalize NFC decomposed in
               assert_bool (Option.is_some result) true;
               (* The composed form should be shorter or equal *)
-              assert_bool (String.length (Option.get result) <= String.length decomposed + 1) true);
+              assert_bool
+                (String.length (Option.get result)
+                <= String.length decomposed + 1)
+                true);
           test "NFD: decomposed form" (fun () ->
               let composed = "café" in
               let result = Unicode.normalize NFD composed in
@@ -419,5 +434,160 @@ let () =
               let result = Unicode.normalize NFKC ligature in
               assert_bool (Option.is_some result) true;
               assert_string (Option.get result) "fi");
+        ] );
+      (* Dtoa tests *)
+      ( "Dtoa.to_string",
+        [
+          test "basic integers" (fun () ->
+              assert_string (Dtoa.Dtoa.to_string 0.0) "0";
+              assert_string (Dtoa.Dtoa.to_string 1.0) "1";
+              assert_string (Dtoa.Dtoa.to_string 42.0) "42";
+              assert_string (Dtoa.Dtoa.to_string (-1.0)) "-1";
+              assert_string (Dtoa.Dtoa.to_string (-42.0)) "-42");
+          test "decimals" (fun () ->
+              assert_string (Dtoa.Dtoa.to_string 3.14) "3.14";
+              assert_string (Dtoa.Dtoa.to_string 0.5) "0.5";
+              assert_string (Dtoa.Dtoa.to_string 0.125) "0.125";
+              assert_string (Dtoa.Dtoa.to_string (-3.14)) "-3.14");
+          test "special values" (fun () ->
+              assert_string (Dtoa.Dtoa.to_string Float.nan) "NaN";
+              assert_string (Dtoa.Dtoa.to_string Float.infinity) "Infinity";
+              assert_string (Dtoa.Dtoa.to_string Float.neg_infinity) "-Infinity");
+          test "negative zero without flag" (fun () ->
+              assert_string (Dtoa.Dtoa.to_string (-0.0)) "0");
+          test "negative zero with flag" (fun () ->
+              let options =
+                { Dtoa.Dtoa.default_options with show_minus_zero = true }
+              in
+              assert_string (Dtoa.Dtoa.to_string ~options (-0.0)) "-0");
+          test "large numbers" (fun () ->
+              assert_string (Dtoa.Dtoa.to_string 1e10) "10000000000";
+              assert_string (Dtoa.Dtoa.to_string 1e20) "100000000000000000000");
+          test "very large numbers use exponential" (fun () ->
+              let s = Dtoa.Dtoa.to_string 1e21 in
+              assert_bool (String.contains s 'e') true);
+          test "small numbers" (fun () ->
+              let s = Dtoa.Dtoa.to_string 1e-10 in
+              assert_bool (String.contains s 'e') true);
+        ] );
+      ( "Dtoa.to_fixed",
+        [
+          test "basic" (fun () ->
+              assert_string (Dtoa.Dtoa.to_fixed 2 3.14159) "3.14";
+              assert_string (Dtoa.Dtoa.to_fixed 0 3.7) "4";
+              assert_string (Dtoa.Dtoa.to_fixed 3 3.1) "3.100");
+          test "rounding" (fun () ->
+              assert_string (Dtoa.Dtoa.to_fixed 1 1.25) "1.3";
+              assert_string (Dtoa.Dtoa.to_fixed 0 0.5) "1");
+          test "negative numbers" (fun () ->
+              assert_string (Dtoa.Dtoa.to_fixed 2 (-3.14)) "-3.14");
+        ] );
+      ( "Dtoa.to_precision",
+        [
+          test "basic" (fun () ->
+              assert_string (Dtoa.Dtoa.to_precision 4 123.456) "123.5";
+              assert_string (Dtoa.Dtoa.to_precision 2 123.456) "1.2e+2";
+              assert_string (Dtoa.Dtoa.to_precision 6 123.456) "123.456");
+          test "small numbers" (fun () ->
+              assert_string (Dtoa.Dtoa.to_precision 2 0.000123) "0.00012");
+        ] );
+      ( "Dtoa.to_exponential",
+        [
+          test "basic" (fun () ->
+              assert_string (Dtoa.Dtoa.to_exponential 2 123.456) "1.23e+2";
+              assert_string (Dtoa.Dtoa.to_exponential 4 123.456) "1.2346e+2");
+          test "small numbers" (fun () ->
+              assert_string (Dtoa.Dtoa.to_exponential 2 0.00123) "1.23e-3");
+        ] );
+      ( "Dtoa.to_radix",
+        [
+          test "binary" (fun () ->
+              assert_string (Dtoa.Dtoa.to_radix 2 8.0) "1000";
+              assert_string (Dtoa.Dtoa.to_radix 2 255.0) "11111111");
+          test "octal" (fun () ->
+              assert_string (Dtoa.Dtoa.to_radix 8 64.0) "100";
+              assert_string (Dtoa.Dtoa.to_radix 8 255.0) "377");
+          test "hexadecimal" (fun () ->
+              assert_string (Dtoa.Dtoa.to_radix 16 255.0) "ff";
+              assert_string (Dtoa.Dtoa.to_radix 16 256.0) "100");
+          test "base 36" (fun () ->
+              assert_string (Dtoa.Dtoa.to_radix 36 35.0) "z";
+              assert_string (Dtoa.Dtoa.to_radix 36 36.0) "10");
+        ] );
+      ( "Atod.parse",
+        [
+          test "basic integers" (fun () ->
+              assert_float_opt (Dtoa.Atod.parse "0") (Some 0.0);
+              assert_float_opt (Dtoa.Atod.parse "42") (Some 42.0);
+              assert_float_opt (Dtoa.Atod.parse "-42") (Some (-42.0)));
+          test "decimals" (fun () ->
+              assert_float_opt (Dtoa.Atod.parse "3.14") (Some 3.14);
+              assert_float_opt (Dtoa.Atod.parse "0.5") (Some 0.5);
+              assert_float_opt (Dtoa.Atod.parse "-3.14") (Some (-3.14)));
+          test "exponential" (fun () ->
+              assert_float_opt (Dtoa.Atod.parse "1e10") (Some 1e10);
+              assert_float_opt (Dtoa.Atod.parse "1.5e-3") (Some 0.0015));
+          test "special values" (fun () ->
+              assert_float_opt
+                (Dtoa.Atod.parse "Infinity")
+                (Some Float.infinity);
+              assert_float_opt
+                (Dtoa.Atod.parse "-Infinity")
+                (Some Float.neg_infinity));
+          test "invalid strings return None" (fun () ->
+              assert_float_opt (Dtoa.Atod.parse "abc") None;
+              assert_float_opt (Dtoa.Atod.parse "") None);
+          test "hex with js_options" (fun () ->
+              let options = Dtoa.Atod.js_options in
+              assert_float_opt (Dtoa.Atod.parse ~options "0xff") (Some 255.0);
+              assert_float_opt (Dtoa.Atod.parse ~options "0b1010") (Some 10.0);
+              assert_float_opt (Dtoa.Atod.parse ~options "0o77") (Some 63.0));
+          test "underscores" (fun () ->
+              let options =
+                { Dtoa.Atod.default_options with accept_underscores = true }
+              in
+              assert_float_opt
+                (Dtoa.Atod.parse ~options "1_000_000")
+                (Some 1000000.0));
+        ] );
+      ( "IntToString",
+        [
+          test "of_int32" (fun () ->
+              assert_string (Dtoa.IntToString.of_int32 0l) "0";
+              assert_string (Dtoa.IntToString.of_int32 42l) "42";
+              assert_string (Dtoa.IntToString.of_int32 (-42l)) "-42";
+              assert_string
+                (Dtoa.IntToString.of_int32 Int32.max_int)
+                "2147483647";
+              assert_string
+                (Dtoa.IntToString.of_int32 Int32.min_int)
+                "-2147483648");
+          test "of_int64" (fun () ->
+              assert_string (Dtoa.IntToString.of_int64 0L) "0";
+              assert_string (Dtoa.IntToString.of_int64 42L) "42";
+              assert_string (Dtoa.IntToString.of_int64 (-42L)) "-42";
+              assert_string
+                (Dtoa.IntToString.of_int64 Int64.max_int)
+                "9223372036854775807";
+              assert_string
+                (Dtoa.IntToString.of_int64 Int64.min_int)
+                "-9223372036854775808");
+          test "of_int" (fun () ->
+              assert_string (Dtoa.IntToString.of_int 0) "0";
+              assert_string (Dtoa.IntToString.of_int 42) "42";
+              assert_string (Dtoa.IntToString.of_int (-42)) "-42");
+          test "of_int_radix binary" (fun () ->
+              assert_string (Dtoa.IntToString.of_int_radix ~radix:2 8) "1000";
+              assert_string
+                (Dtoa.IntToString.of_int_radix ~radix:2 255)
+                "11111111");
+          test "of_int_radix hex" (fun () ->
+              assert_string (Dtoa.IntToString.of_int_radix ~radix:16 255) "ff";
+              assert_string (Dtoa.IntToString.of_int_radix ~radix:16 256) "100");
+          test "of_int64_radix" (fun () ->
+              assert_string
+                (Dtoa.IntToString.of_int64_radix ~radix:16 255L)
+                "ff";
+              assert_string (Dtoa.IntToString.of_int64_radix ~radix:36 35L) "z");
         ] );
     ]

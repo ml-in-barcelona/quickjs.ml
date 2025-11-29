@@ -1,6 +1,10 @@
 type normalization = NFC | NFD | NFKC | NFKD
 
-let normalization_to_int = function NFC -> 0 | NFD -> 1 | NFKC -> 2 | NFKD -> 3
+let normalization_to_int = function
+  | NFC -> 0
+  | NFD -> 1
+  | NFKC -> 2
+  | NFKD -> 3
 
 (* LRE_CC_RES_LEN_MAX from libunicode.h - max code points from case conversion *)
 let lre_cc_res_len_max = 3
@@ -29,7 +33,9 @@ let codepoints_to_utf8 cps =
   let encoder = Uutf.encoder `UTF_8 (`Buffer buf) in
   Array.iter
     (fun cp ->
-      let u = if cp >= 0 && cp <= 0x10FFFF then Uchar.of_int cp else Uchar.rep in
+      let u =
+        if cp >= 0 && cp <= 0x10FFFF then Uchar.of_int cp else Uchar.rep
+      in
       ignore (Uutf.encode encoder (`Uchar u)))
     cps;
   ignore (Uutf.encode encoder `End);
@@ -126,7 +132,11 @@ let normalize form s =
         (Array.to_list (Array.map Unsigned.UInt32.of_int cps))
     in
     let src_ptr = Ctypes.CArray.start src in
-    let dst_ptr = Ctypes.allocate (Ctypes.ptr Ctypes.uint32_t) (Ctypes.from_voidp Ctypes.uint32_t Ctypes.null) in
+    let dst_ptr =
+      Ctypes.allocate
+        (Ctypes.ptr Ctypes.uint32_t)
+        (Ctypes.from_voidp Ctypes.uint32_t Ctypes.null)
+    in
     let n_type = normalization_to_int form in
     let result_len =
       Bindings.C.Functions.unicode_normalize_shim src_ptr len n_type dst_ptr
@@ -136,9 +146,7 @@ let normalize form s =
       let dst = Ctypes.(!@dst_ptr) in
       let result_cps = Array.make result_len 0 in
       for i = 0 to result_len - 1 do
-        result_cps.(i) <-
-          Unsigned.UInt32.to_int Ctypes.(!@(dst +@ i))
+        result_cps.(i) <- Unsigned.UInt32.to_int Ctypes.(!@(dst +@ i))
       done;
       Bindings.C.Functions.unicode_normalize_free dst;
       Some (codepoints_to_utf8 result_cps)
-

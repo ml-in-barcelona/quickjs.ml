@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include "cutils.h"
 #include "libunicode.h"
+#include "libregexp.h"
+#include "dtoa.h"
 
 int lre_check_stack_overflow(void *opaque, size_t alloca_size)
 {
@@ -31,4 +33,17 @@ int unicode_normalize_shim(const uint32_t *src, int src_len, int n_type, uint32_
 void unicode_normalize_free(uint32_t *ptr)
 {
     free(ptr);
+}
+
+/* ctypes shims: ctypes can't express C's const qualifier, so these wrappers cast between const/non-const pointer types */
+
+char *lre_get_groupnames_shim(const uint8_t *bc_buf)
+{
+    return (char *)lre_get_groupnames(bc_buf);
+}
+
+double js_atod_shim(const char *str, char **pnext, int radix, int flags,
+                    JSATODTempMem *tmp_mem)
+{
+    return js_atod(str, (const char **)pnext, radix, flags, tmp_mem);
 }
