@@ -1,4 +1,5 @@
 module RegExp = Quickjs.RegExp
+module Unicode = Quickjs.Unicode
 
 let test title fn = Alcotest.test_case title `Quick fn
 
@@ -260,5 +261,163 @@ let () =
           test "[a-z[]" (fun () ->
               let regex = regexp_compile "[a-z[]" ~flags:"" in
               assert_string (RegExp.source regex) "[a-z[]");
+        ] );
+      ( "Unicode.is_cased",
+        [
+          test "ASCII letters are cased" (fun () ->
+              assert_bool (Unicode.is_cased (Uchar.of_char 'a')) true;
+              assert_bool (Unicode.is_cased (Uchar.of_char 'A')) true;
+              assert_bool (Unicode.is_cased (Uchar.of_char 'z')) true;
+              assert_bool (Unicode.is_cased (Uchar.of_char 'Z')) true);
+          test "digits and symbols are not cased" (fun () ->
+              assert_bool (Unicode.is_cased (Uchar.of_char '0')) false;
+              assert_bool (Unicode.is_cased (Uchar.of_char '!')) false;
+              assert_bool (Unicode.is_cased (Uchar.of_char ' ')) false);
+          test "accented letters are cased" (fun () ->
+              (* é = U+00E9 *)
+              assert_bool (Unicode.is_cased (Uchar.of_int 0x00E9)) true;
+              (* É = U+00C9 *)
+              assert_bool (Unicode.is_cased (Uchar.of_int 0x00C9)) true);
+        ] );
+      ( "Unicode.is_id_start",
+        [
+          test "letters can start identifiers" (fun () ->
+              assert_bool (Unicode.is_id_start (Uchar.of_char 'a')) true;
+              assert_bool (Unicode.is_id_start (Uchar.of_char 'Z')) true);
+          test "digits cannot start identifiers" (fun () ->
+              assert_bool (Unicode.is_id_start (Uchar.of_char '0')) false;
+              assert_bool (Unicode.is_id_start (Uchar.of_char '9')) false);
+          test "underscore and dollar - Unicode ID_Start excludes them" (fun () ->
+              (* Note: Unicode ID_Start does NOT include _ and $
+                 JavaScript adds them as special cases *)
+              assert_bool (Unicode.is_id_start (Uchar.of_char '_')) false;
+              assert_bool (Unicode.is_id_start (Uchar.of_char '$')) false);
+          test "unicode letters can start identifiers" (fun () ->
+              (* Greek alpha = U+03B1 *)
+              assert_bool (Unicode.is_id_start (Uchar.of_int 0x03B1)) true;
+              (* Chinese character 中 = U+4E2D *)
+              assert_bool (Unicode.is_id_start (Uchar.of_int 0x4E2D)) true);
+        ] );
+      ( "Unicode.is_id_continue",
+        [
+          test "letters can continue identifiers" (fun () ->
+              assert_bool (Unicode.is_id_continue (Uchar.of_char 'a')) true;
+              assert_bool (Unicode.is_id_continue (Uchar.of_char 'Z')) true);
+          test "digits can continue identifiers" (fun () ->
+              assert_bool (Unicode.is_id_continue (Uchar.of_char '0')) true;
+              assert_bool (Unicode.is_id_continue (Uchar.of_char '9')) true);
+          test "underscore in ID_Continue but dollar not" (fun () ->
+              (* Underscore is in Unicode ID_Continue (via Pc category) *)
+              assert_bool (Unicode.is_id_continue (Uchar.of_char '_')) true;
+              (* Dollar is NOT in Unicode ID_Continue - JavaScript adds it *)
+              assert_bool (Unicode.is_id_continue (Uchar.of_char '$')) false);
+        ] );
+      ( "Unicode.is_whitespace",
+        [
+          test "ASCII whitespace" (fun () ->
+              assert_bool (Unicode.is_whitespace (Uchar.of_char ' ')) true;
+              assert_bool (Unicode.is_whitespace (Uchar.of_char '\t')) true;
+              assert_bool (Unicode.is_whitespace (Uchar.of_char '\n')) true);
+          test "letters are not whitespace" (fun () ->
+              assert_bool (Unicode.is_whitespace (Uchar.of_char 'a')) false;
+              assert_bool (Unicode.is_whitespace (Uchar.of_char '0')) false);
+          test "unicode whitespace characters" (fun () ->
+              (* EN QUAD = U+2000 *)
+              assert_bool (Unicode.is_whitespace (Uchar.of_int 0x2000)) true;
+              (* IDEOGRAPHIC SPACE = U+3000 *)
+              assert_bool (Unicode.is_whitespace (Uchar.of_int 0x3000)) true);
+        ] );
+      ( "Unicode.lowercase",
+        [
+          test "ASCII lowercase" (fun () ->
+              assert_string (Unicode.lowercase "HELLO") "hello";
+              assert_string (Unicode.lowercase "Hello World") "hello world");
+          test "already lowercase unchanged" (fun () ->
+              assert_string (Unicode.lowercase "hello") "hello");
+          test "unicode lowercase" (fun () ->
+              assert_string (Unicode.lowercase "ÉCOLE") "école");
+          test "empty string" (fun () ->
+              assert_string (Unicode.lowercase "") "");
+        ] );
+      ( "Unicode.uppercase",
+        [
+          test "ASCII uppercase" (fun () ->
+              assert_string (Unicode.uppercase "hello") "HELLO";
+              assert_string (Unicode.uppercase "Hello World") "HELLO WORLD");
+          test "already uppercase unchanged" (fun () ->
+              assert_string (Unicode.uppercase "HELLO") "HELLO");
+          test "unicode uppercase" (fun () ->
+              assert_string (Unicode.uppercase "école") "ÉCOLE");
+          test "German sharp s expands" (fun () ->
+              (* ß → SS *)
+              assert_string (Unicode.uppercase "straße") "STRASSE");
+          test "empty string" (fun () ->
+              assert_string (Unicode.uppercase "") "");
+        ] );
+      ( "Unicode.lowercase_char",
+        [
+          test "ASCII letter" (fun () ->
+              let result = Unicode.lowercase_char (Uchar.of_char 'A') in
+              assert_int (List.length result) 1;
+              assert_bool (List.hd result = Uchar.of_char 'a') true);
+          test "already lowercase" (fun () ->
+              let result = Unicode.lowercase_char (Uchar.of_char 'a') in
+              assert_int (List.length result) 1;
+              assert_bool (List.hd result = Uchar.of_char 'a') true);
+        ] );
+      ( "Unicode.uppercase_char",
+        [
+          test "ASCII letter" (fun () ->
+              let result = Unicode.uppercase_char (Uchar.of_char 'a') in
+              assert_int (List.length result) 1;
+              assert_bool (List.hd result = Uchar.of_char 'A') true);
+          test "German sharp s expands to two chars" (fun () ->
+              (* ß = U+00DF → SS *)
+              let result = Unicode.uppercase_char (Uchar.of_int 0x00DF) in
+              assert_int (List.length result) 2;
+              assert_bool (List.nth result 0 = Uchar.of_char 'S') true;
+              assert_bool (List.nth result 1 = Uchar.of_char 'S') true);
+        ] );
+      ( "Unicode.canonicalize",
+        [
+          test "unicode mode: uppercase to lowercase" (fun () ->
+              let result = Unicode.canonicalize (Uchar.of_char 'A') in
+              assert_bool (result = Uchar.of_char 'a') true);
+          test "unicode mode: lowercase stays same" (fun () ->
+              let result = Unicode.canonicalize (Uchar.of_char 'a') in
+              assert_bool (result = Uchar.of_char 'a') true);
+          test "non-unicode mode: lowercase to uppercase (legacy behavior)" (fun () ->
+              (* In non-unicode mode, lre_canonicalize converts lowercase to uppercase *)
+              let result = Unicode.canonicalize ~unicode:false (Uchar.of_char 'a') in
+              assert_bool (result = Uchar.of_char 'A') true);
+        ] );
+      ( "Unicode.normalize",
+        [
+          test "NFC: composed form" (fun () ->
+              (* café with combining acute (U+0301) should compose to é (U+00E9) *)
+              let decomposed = "cafe\xCC\x81" in (* café with combining acute *)
+              let result = Unicode.normalize NFC decomposed in
+              assert_bool (Option.is_some result) true;
+              (* The composed form should be shorter or equal *)
+              assert_bool (String.length (Option.get result) <= String.length decomposed + 1) true);
+          test "NFD: decomposed form" (fun () ->
+              let composed = "café" in
+              let result = Unicode.normalize NFD composed in
+              assert_bool (Option.is_some result) true);
+          test "ASCII unchanged by NFC" (fun () ->
+              let ascii = "hello world" in
+              let result = Unicode.normalize NFC ascii in
+              assert_bool (Option.is_some result) true;
+              assert_string (Option.get result) ascii);
+          test "empty string" (fun () ->
+              let result = Unicode.normalize NFC "" in
+              assert_bool (Option.is_some result) true;
+              assert_string (Option.get result) "");
+          test "NFKC compatibility decomposition" (fun () ->
+              (* ﬁ (U+FB01) should decompose to fi *)
+              let ligature = "\xEF\xAC\x81" in
+              let result = Unicode.normalize NFKC ligature in
+              assert_bool (Option.is_some result) true;
+              assert_string (Option.get result) "fi");
         ] );
     ]

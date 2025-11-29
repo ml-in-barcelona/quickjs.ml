@@ -12,7 +12,7 @@
  (ctypes
   (external_library_name libregexp)
   (headers
-   (preamble "#include \"libregexp.h\""))
+   (preamble "#include \"cutils.h\"\n#include \"libregexp.h\"\n#include \"libunicode.h\"\n#include \"shims.h\""))
   (build_flags_resolver
    (vendored
     (c_flags "-Iquickjs")))
@@ -28,7 +28,8 @@
 
 (subdir
  quickjs
- (copy_files ../shims.c))
+ (copy_files ../shims.c)
+ (copy_files ../shims.h))
 
 (subdir
  quickjs

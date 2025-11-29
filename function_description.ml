@@ -53,4 +53,71 @@ module Functions (F : Ctypes.FOREIGN) = struct
     F.foreign "lre_get_flags"
       (* const uint8_t *bc_buf *)
       (Ctypes.ptr Ctypes.uint8_t @-> F.returning Ctypes.int)
+
+  (* Unicode - Character Classification *)
+
+  let lre_is_cased =
+    F.foreign "lre_is_cased"
+      (* uint32_t c *)
+      (Ctypes.uint32_t @-> F.returning Ctypes.int)
+
+  let lre_is_case_ignorable =
+    F.foreign "lre_is_case_ignorable"
+      (* uint32_t c *)
+      (Ctypes.uint32_t @-> F.returning Ctypes.int)
+
+  let lre_is_id_start =
+    F.foreign "lre_is_id_start"
+      (* uint32_t c *)
+      (Ctypes.uint32_t @-> F.returning Ctypes.int)
+
+  let lre_is_id_continue =
+    F.foreign "lre_is_id_continue"
+      (* uint32_t c *)
+      (Ctypes.uint32_t @-> F.returning Ctypes.int)
+
+  let lre_is_space_non_ascii =
+    F.foreign "lre_is_space_non_ascii"
+      (* uint32_t c *)
+      (Ctypes.uint32_t @-> F.returning Ctypes.int)
+
+  (* Unicode - Case Conversion *)
+
+  let lre_case_conv =
+    F.foreign "lre_case_conv"
+      (* uint32_t *res *)
+      (Ctypes.ptr Ctypes.uint32_t
+      (* uint32_t c *)
+      @-> Ctypes.uint32_t
+      (* int conv_type: 0=upper, 1=lower, 2=case_folding *)
+      @-> Ctypes.int
+      @-> F.returning Ctypes.int)
+
+  let lre_canonicalize =
+    F.foreign "lre_canonicalize"
+      (* uint32_t c *)
+      (Ctypes.uint32_t
+      (* int is_unicode *)
+      @-> Ctypes.int
+      @-> F.returning Ctypes.int)
+
+  (* Unicode - Normalization (via C shim) *)
+
+  let unicode_normalize_shim =
+    F.foreign "unicode_normalize_shim"
+      (* const uint32_t *src *)
+      (Ctypes.ptr Ctypes.uint32_t
+      (* int src_len *)
+      @-> Ctypes.int
+      (* int n_type: 0=NFC, 1=NFD, 2=NFKC, 3=NFKD *)
+      @-> Ctypes.int
+      (* uint32_t **pdst - output buffer pointer *)
+      @-> Ctypes.ptr (Ctypes.ptr Ctypes.uint32_t)
+      (* returns length or -1 on error *)
+      @-> F.returning Ctypes.int)
+
+  let unicode_normalize_free =
+    F.foreign "unicode_normalize_free"
+      (* uint32_t *ptr *)
+      (Ctypes.ptr Ctypes.uint32_t @-> F.returning Ctypes.void)
 end
