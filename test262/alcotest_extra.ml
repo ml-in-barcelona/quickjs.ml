@@ -1,7 +1,6 @@
 (** Extended utilities for Alcotest used in TC39 Test262 tests *)
 
 module RegExp = Quickjs.RegExp
-module Number = Quickjs.Number
 
 (** Expected failures - tests that we know don't pass yet but want to track *)
 let expected_failures : string list =

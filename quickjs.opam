@@ -10,14 +10,13 @@ bug-reports: "https://github.com/ml-in-barcelona/quickjs.ml/issues"
 depends: [
   "dune" {>= "3.8"}
   "ocaml" {>= "4.14.0"}
-  "integers"
-  "uutf"
+  "integers" {>= "0.7.0"}
+  "uutf" {>= "1.0.3"}
   "ctypes" {>= "0.13.0"}
   "alcotest" {with-test}
-  "fmt" {with-test}
   "odoc" {with-doc}
-  "ocaml-lsp-server" {with-test}
-  "ocamlformat" {= "0.26.1" & with-test}
+  "ocaml-lsp-server" {with-dev-setup}
+  "ocamlformat" {with-dev-setup}
 ]
 build: [
   ["dune" "subst"] {dev}

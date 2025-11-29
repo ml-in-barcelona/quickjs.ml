@@ -25,21 +25,17 @@
  (depends
   ;; General system dependencies
   (ocaml (>= 4.14.0))
-  integers
-  uutf
+  (integers (>= 0.7.0))
+  (uutf (>= 1.0.3))
   (ctypes (>= 0.13.0))
 
   ;; Test dependencies
   (alcotest :with-test)
-  (fmt :with-test)
 
   ;; Documentation
   (odoc :with-doc)
 
-  ;; Dev dependencies, using with-test so that consumers don't install them (until package is released in opam)
-  (ocaml-lsp-server :with-test)
-  (ocamlformat
-   (and
-    (= 0.26.1)
-    :with-test))
+  ;; Dev dependencies
+  (ocaml-lsp-server :with-dev-setup)
+  (ocamlformat :with-dev-setup)
 ))

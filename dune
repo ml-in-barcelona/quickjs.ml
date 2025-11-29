@@ -12,7 +12,7 @@
  (ctypes
   (external_library_name libregexp)
   (headers
-   (include "libregexp.h"))
+   (preamble "#include \"libregexp.h\""))
   (build_flags_resolver
    (vendored
     (c_flags "-Iquickjs")))

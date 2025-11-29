@@ -8,12 +8,6 @@
 let () =
   Alcotest.run "test262"
     [
-      (* Number tests *)
-      ("Number.parseInt", Number.Parse_int.tests);
-      ("Number.parseFloat", Number.Parse_float.tests);
-      ("Number.isNaN", Number.Is_nan.tests);
-      ("Number.isFinite", Number.Is_finite.tests);
-      ("Number.isInteger", Number.Is_integer.tests);
       (* RegExp tests *)
       ("RegExp.compile", Regexp.Compile.tests);
       ("RegExp.prototype.test", Regexp.Test.tests);

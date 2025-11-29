@@ -50,7 +50,7 @@ setup-githooks: ## Setup githooks
 
 .PHONY: create-switch
 create-switch: ## Create opam switch
-	opam switch create . 5.1.0 --deps-only --with-test -y
+	opam switch create . 5.4.0 --deps-only --no-install -y
 
 .PHONY: install
 install: ## Install dependencies
