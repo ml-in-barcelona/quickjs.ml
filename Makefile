@@ -59,25 +59,13 @@ install: ## Install dependencies
 .PHONY: init
 init: setup-githooks create-switch install ## Create a local dev enviroment
 
-.PHONY: demo
-demo: ## Run demo executable
-	@$(DUNE) exec demo/demo.exe \
-		--profile=demo \
-		--action-stdout-on-success=print \
-		--display-separate-messages \
-		--force \
-		--terminal-persistence=clear-on-rebuild \
-		--watch
+.PHONY: bench
+bench: ## Run benchmark (make bench [quick|compare|scaling|edge|all])
+	@$(DUNE) exec benchmark/main.exe --profile=benchmark -- $(filter-out bench,$(MAKECMDGOALS))
 
-.PHONY: demo-watch
-demo-watch: ## Run demo executable
-	@$(DUNE) exec demo/demo.exe \
-		--watch \
-		--action-stdout-on-success=print \
-		--display-separate-messages \
-		--force \
-		--terminal-persistence=clear-on-rebuild \
-		--profile=demo
+# Allow "make bench <scenario>" syntax
+quick compare scaling edge all:
+	@true
 
 .PHONY: subst
 subst: ## Run dune substitute

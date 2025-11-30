@@ -1,4 +1,4 @@
-(dirs lib test test262 quickjs demo docs)
+(dirs lib test test262 quickjs benchmark docs)
 
 (documentation
  (package quickjs)

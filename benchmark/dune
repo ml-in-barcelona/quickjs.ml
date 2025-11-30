@@ -1,0 +1,5 @@
+(executable
+ (name main)
+ (enabled_if
+  (= %{profile} "benchmark"))
+ (libraries quickjs unix str))

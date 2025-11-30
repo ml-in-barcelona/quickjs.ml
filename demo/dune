@@ -1,5 +1,0 @@
-(executable
- (name demo)
- (enabled_if
-  (= %{profile} "demo"))
- (libraries quickjs))
