@@ -16,7 +16,7 @@
     "#include \"cutils.h\"\n#include \"libregexp.h\"\n#include \"libunicode.h\"\n#include \"dtoa.h\"\n#include \"shims.h\"\n"))
   (build_flags_resolver
    (vendored
-    (c_flags "-Iquickjs")))
+    (c_flags "-Iquickjs" "-fPIC")))
   (type_description
    (instance Type)
    (functor Type_description))
