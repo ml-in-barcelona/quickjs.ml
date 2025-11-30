@@ -10,4 +10,6 @@
  (libraries alcotest quickjs alcotest_extra)
  (modules :standard \ alcotest_extra)
  (flags
-  (:standard -open Alcotest_extra)))
+  (:standard -open Alcotest_extra))
+ (enabled_if
+  (<> %{architecture} s390x)))

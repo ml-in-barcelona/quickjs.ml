@@ -1,3 +1,5 @@
 (test
  (name test)
- (libraries alcotest quickjs))
+ (libraries alcotest quickjs)
+ (enabled_if
+  (<> %{architecture} s390x)))

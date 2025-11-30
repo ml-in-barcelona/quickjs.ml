@@ -33,3 +33,5 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/ml-in-barcelona/quickjs.ml.git"
+conflicts: [ "ocaml-option-bytecode-only" ]
+x-maintenance-intent: ["(latest)"]
