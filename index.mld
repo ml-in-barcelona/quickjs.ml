@@ -1,17 +1,49 @@
 {1 quickjs}
 
-[quickjs] is a set of OCaml bindings for {{:https://bellard.org/quickjs}QuickJS}. QuickJS is a small and embeddable JavaScript engine. It supports the ES2020 specification including modules, asynchronous generators, proxies and BigInt.
+[quickjs.ml] is a set of OCaml bindings to some libraries from {{:https://bellard.org/quickjs}QuickJS}, a small and embeddable JavaScript engine that implements the ES2020 specification including modules, asynchronous generators, proxies and BigInt.
 
-The project exposes two libraries:
+This project exposes two libraries:
 
-- [quickjs.bindings] with the QuickJS C API.
+- {{!page:c}quickjs.c}: Low-level OCaml bindings to QuickJS C functions ({{!module:Libregexp}Libregexp}, {{!module:Libunicode}Libunicode}, {{!module:Dtoa}Dtoa}, {{!module:Atod}Atod}, and {{!module:Cutils}Cutils})
 
-- The library {{!module: quickjs}quickjs} which exposes a polished API on top of [quickjs.bindings] with the same shape as the JavaScript API.
+- {{!module:Quickjs}quickjs}: A high-level API that mirrors JavaScript's built-in objects and methods. Modules include {{!module:Quickjs.RegExp}RegExp}, {{!module:Quickjs.String}String}, {{!module:Quickjs.Number}Number}, and {{!module:Quickjs.Global}Global}.
 
 {2 Motivation}
 
-The purpose of this project is to provide the same behaviour as the JavaScript engines from browsers {{:https://spidermonkey.dev}SpiderMonkey}, {{:https://developer.apple.com/documentation/javascriptcore}JavaScriptCore}, {{:https://github.com/chakra-core/ChakraCore}ChakraCore}, {{:https://v8.dev/}v8}) into OCaml. So code that runs in the browser (via {{:https://melange.re}Melange}) can be run in native with the same results.
+The purpose of this project is to provide the same behaviour as the JavaScript engines from browsers ({{:https://spidermonkey.dev}SpiderMonkey}, {{:https://developer.apple.com/documentation/javascriptcore}JavaScriptCore}, {{:https://github.com/chakra-core/ChakraCore}ChakraCore}, {{:https://v8.dev/}v8}) into native OCaml. So code that runs in the browser (via {{:https://melange.re}Melange}) can be run in native with the same results.
 
-{2 Status}
+{2 Test262 Compatibility}
 
-This is a work in progress, and currently only includes bindings to [RegExp] (binded to [libregexp.c]).
+We are translating {{:https://github.com/tc39/test262}TC39/test262} tests into OCaml to ensure full compatibility with the ECMAScript specification. This allows us to verify that our implementations behave exactly as expected by the JavaScript standard, guaranteeing consistent behaviour between browser engines and native OCaml.
+
+{2 Usage}
+
+{[
+open Quickjs
+
+(* RegExp - JavaScript-compatible regular expressions *)
+let re = RegExp.compile ~flags:"g" "(?<word>\\w+)" |> Result.get_ok in
+let result = RegExp.exec re "hello world" in
+RegExp.captures result        (* [| "hello"; "hello" |] *)
+RegExp.group "word" result    (* Some "hello" *)
+RegExp.exec re "hello world"  (* next match: "world" *)
+
+(* Number.Prototype - JavaScript-identical number formatting *)
+Number.Prototype.to_string 0.1        (* "0.1" - no floating point artifacts *)
+Number.Prototype.to_fixed 2 3.14159   (* "3.14" *)
+Number.Prototype.to_radix 16 255.0    (* "ff" *)
+Number.Prototype.to_exponential 2 123.456  (* "1.23e+2" *)
+
+(* Global - JavaScript global functions *)
+Global.parse_float "3.14"             (* Some 3.14 *)
+Global.parse_float ~options:Global.js_parse_options "0xff"  (* Some 255.0 *)
+
+(* Number - fast integer to string *)
+Number.of_int 42                      (* "42" *)
+Number.of_int_radix ~radix:16 255     (* "ff" *)
+Number.of_int64 9223372036854775807L  (* "9223372036854775807" *)
+
+(* String.Prototype - JavaScript string methods *)
+String.Prototype.to_lower_case "HELLO"  (* "hello" *)
+String.Prototype.to_upper_case "world"  (* "WORLD" *)
+]}
