@@ -3,6 +3,14 @@
 ## Unreleased
 
 - Fix openSUSE
+- **Breaking:** Reorganized API to mirror JavaScript built-in objects:
+  - `Dtoa` → `Number.Prototype` (toString, toFixed, toPrecision, toExponential, toRadix)
+  - `Atod` → `Global` (parse_float, parse_float_partial)
+  - `IntToString` → `Number` (of_int, of_int32, of_int64, of_int_radix, etc.)
+  - New `String.Prototype` module (to_lower_case, to_upper_case, normalize)
+  - New `Unicode` module for character-level operations (is_cased, is_id_start, canonicalize, etc.)
+- Added TC39/test262 test coverage for Number, String, Global, and Unicode modules
+- Added tests for special values (NaN, Infinity) in Number.Prototype methods
 
 ## 0.2.0
 

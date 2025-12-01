@@ -2,9 +2,8 @@
 
 module RegExp = Quickjs.RegExp
 module Unicode = Quickjs.Unicode
-module Dtoa = Quickjs.Dtoa
-module Atod = Quickjs.Atod
-module Itoa = Quickjs.Itoa
+module Number = Quickjs.Number
+module Global = Quickjs.Global
 
 type result = { time_per_op_us : float; words_per_op : float }
 
@@ -72,24 +71,24 @@ let run_quick () =
   print "lowercase ASCII" (bench (fun () -> Unicode.lowercase "HELLO WORLD"));
   print "lowercase Unicode" (bench (fun () -> Unicode.lowercase "ÉCOLE CAFÉ"));
   print "uppercase ASCII" (bench (fun () -> Unicode.uppercase "hello world"));
-  print "normalize NFC" (bench (fun () -> Unicode.normalize NFC "café"));
+  print "normalize NFC" (bench (fun () -> Unicode.normalize Unicode.NFC "café"));
   print "is_id_start"
     (bench (fun () -> Unicode.is_id_start (Uchar.of_char 'a')));
 
-  section "Dtoa";
-  print "to_string integer" (bench (fun () -> Dtoa.to_string 42.0));
+  section "Number.Prototype (float to string)";
+  print "to_string integer" (bench (fun () -> Number.Prototype.to_string 42.0));
   print "to_string decimal"
-    (bench (fun () -> Dtoa.to_string 3.14159265358979));
-  print "to_fixed 2" (bench (fun () -> Dtoa.to_fixed 2 3.14159));
-  print "parse integer" (bench (fun () -> Atod.parse "12345"));
-  print "parse decimal" (bench (fun () -> Atod.parse "3.14159"));
+    (bench (fun () -> Number.Prototype.to_string 3.14159265358979));
+  print "to_fixed 2" (bench (fun () -> Number.Prototype.to_fixed 2 3.14159));
 
-  section "Itoa";
-  print "of_int" (bench (fun () -> Itoa.of_int 123456789));
-  print "of_int64"
-    (bench (fun () -> Itoa.of_int64 9223372036854775807L));
-  print "of_int_radix 16"
-    (bench (fun () -> Itoa.of_int_radix ~radix:16 255))
+  section "Global (parse float)";
+  print "parse integer" (bench (fun () -> Global.parse_float "12345"));
+  print "parse decimal" (bench (fun () -> Global.parse_float "3.14159"));
+
+  section "Number (int to string)";
+  print "of_int" (bench (fun () -> Number.of_int 123456789));
+  print "of_int64" (bench (fun () -> Number.of_int64 9223372036854775807L));
+  print "of_int_radix 16" (bench (fun () -> Number.of_int_radix ~radix:16 255))
 
 (* === STDLIB COMPARISON === *)
 let run_compare () =
@@ -113,29 +112,29 @@ let run_compare () =
   compare ~name:"-> Unicode" ~ours ~theirs;
   Printf.printf "  (quickjs handles full Unicode, stdlib is ASCII-only)\n";
 
-  section "Dtoa vs stdlib";
-  let ours = bench (fun () -> Dtoa.to_string 3.14159) in
+  section "Number.Prototype vs stdlib";
+  let ours = bench (fun () -> Number.Prototype.to_string 3.14159) in
   let theirs = bench (fun () -> string_of_float 3.14159) in
-  print "quickjs.Dtoa.to_string" ours;
+  print "quickjs.Number.Prototype.to_string" ours;
   print "string_of_float" theirs;
   compare ~name:"-> float->string" ~ours ~theirs;
 
-  let ours = bench (fun () -> Atod.parse "3.14159") in
+  let ours = bench (fun () -> Global.parse_float "3.14159") in
   let theirs = bench (fun () -> float_of_string "3.14159") in
-  print "quickjs.Atod.parse" ours;
+  print "quickjs.Global.parse_float" ours;
   print "float_of_string" theirs;
   compare ~name:"-> string->float" ~ours ~theirs;
 
-  section "Itoa vs stdlib";
-  let ours = bench (fun () -> Itoa.of_int 123456789) in
+  section "Number vs stdlib";
+  let ours = bench (fun () -> Number.of_int 123456789) in
   let theirs = bench (fun () -> Int.to_string 123456789) in
-  print "quickjs.Itoa.of_int" ours;
+  print "quickjs.Number.of_int" ours;
   print "Int.to_string" theirs;
   compare ~name:"-> int->string" ~ours ~theirs;
 
-  let ours = bench (fun () -> Itoa.of_int64 9223372036854775807L) in
+  let ours = bench (fun () -> Number.of_int64 9223372036854775807L) in
   let theirs = bench (fun () -> Int64.to_string 9223372036854775807L) in
-  print "quickjs.Itoa.of_int64" ours;
+  print "quickjs.Number.of_int64" ours;
   print "Int64.to_string" theirs;
   compare ~name:"-> int64->string" ~ours ~theirs
 
@@ -163,7 +162,7 @@ let run_scaling () =
         (Printf.sprintf "%d chars" size)
         (bench ~iterations:10_000 (fun () -> Unicode.lowercase input)));
 
-  section "Dtoa - number magnitude";
+  section "Number.Prototype - number magnitude";
   [
     ("42", 42.0);
     ("123456789", 123456789.0);
@@ -173,14 +172,14 @@ let run_scaling () =
     ("pi", 3.141592653589793);
   ]
   |> List.iter (fun (name, num) ->
-      print name (bench (fun () -> Dtoa.to_string num)));
+      print name (bench (fun () -> Number.Prototype.to_string num)));
 
-  section "Itoa - radix";
+  section "Number - radix";
   [ 2; 8; 10; 16; 36 ]
   |> List.iter (fun radix ->
       print
         (Printf.sprintf "radix %d" radix)
-        (bench (fun () -> Itoa.of_int_radix ~radix 123456789)))
+        (bench (fun () -> Number.of_int_radix ~radix 123456789)))
 
 (* === EDGE CASES === *)
 let run_edge () =
@@ -189,29 +188,29 @@ let run_edge () =
   section "Empty/minimal inputs";
   print "lowercase empty" (bench (fun () -> Unicode.lowercase ""));
   print "lowercase 1 char" (bench (fun () -> Unicode.lowercase "A"));
-  print "parse empty" (bench (fun () -> Atod.parse ""));
-  print "Itoa 0" (bench (fun () -> Itoa.of_int 0));
+  print "parse empty" (bench (fun () -> Global.parse_float ""));
+  print "of_int 0" (bench (fun () -> Number.of_int 0));
 
   section "Special floats";
-  print "to_string NaN" (bench (fun () -> Dtoa.to_string Float.nan));
+  print "to_string NaN" (bench (fun () -> Number.Prototype.to_string Float.nan));
   print "to_string Infinity"
-    (bench (fun () -> Dtoa.to_string Float.infinity));
+    (bench (fun () -> Number.Prototype.to_string Float.infinity));
   print "to_string -Infinity"
-    (bench (fun () -> Dtoa.to_string Float.neg_infinity));
-  print "to_string -0.0" (bench (fun () -> Dtoa.to_string (-0.0)));
+    (bench (fun () -> Number.Prototype.to_string Float.neg_infinity));
+  print "to_string -0.0" (bench (fun () -> Number.Prototype.to_string (-0.0)));
 
   section "Unicode edge cases";
   print "German eszett uppercase" (bench (fun () -> Unicode.uppercase "ß"));
   print "normalize decomposed e+accent"
-    (bench (fun () -> Unicode.normalize NFC "e\xCC\x81"));
+    (bench (fun () -> Unicode.normalize Unicode.NFC "e\xCC\x81"));
   print "is_id_start emoji"
     (bench (fun () -> Unicode.is_id_start (Uchar.of_int 0x1F600)));
 
   section "Boundary integers";
-  print "max_int" (bench (fun () -> Itoa.of_int max_int));
-  print "min_int" (bench (fun () -> Itoa.of_int min_int));
-  print "int64 max" (bench (fun () -> Itoa.of_int64 Int64.max_int));
-  print "int64 min" (bench (fun () -> Itoa.of_int64 Int64.min_int))
+  print "max_int" (bench (fun () -> Number.of_int max_int));
+  print "min_int" (bench (fun () -> Number.of_int min_int));
+  print "int64 max" (bench (fun () -> Number.of_int64 Int64.max_int));
+  print "int64 min" (bench (fun () -> Number.of_int64 Int64.min_int))
 
 (* === MAIN === *)
 let usage =
