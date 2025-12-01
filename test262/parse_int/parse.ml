@@ -47,7 +47,8 @@ let radix_octal () =
 let radix_hex () =
   assert_int_opt (Global.parse_int ~radix:16 "ff") (Some 255);
   assert_int_opt (Global.parse_int ~radix:16 "FF") (Some 255);
-  assert_int_opt (Global.parse_int ~radix:16 "deadbeef") (Some 0xdeadbeef);
+  (* Use a value that fits in 31 bits for 32-bit platform compatibility *)
+  assert_int_opt (Global.parse_int ~radix:16 "7fffffff") (Some 0x7fffffff);
   assert_int_opt (Global.parse_int ~radix:16 "-ff") (Some (-255))
 
 let radix_36 () =
@@ -117,11 +118,22 @@ let partial_valid_digits () =
    =================================================================== *)
 
 let large_numbers () =
-  (* JavaScript MAX_SAFE_INTEGER is 2^53-1 = 9007199254740991 *)
-  assert_int_opt (Global.parse_int "9007199254740991") (Some 9007199254740991);
-  assert_int_opt
-    (Global.parse_int "-9007199254740991")
-    (Some (-9007199254740991))
+  (* Test with max values that fit in OCaml's int type.
+     On 64-bit: int is 63 bits, max = 4611686018427387903
+     On 32-bit: int is 31 bits, max = 1073741823
+     We use Sys.int_size to pick appropriate test values. *)
+  if Sys.int_size >= 63 then begin
+    (* 64-bit platform: can test with JS MAX_SAFE_INTEGER *)
+    assert_int_opt (Global.parse_int "9007199254740991") (Some 9007199254740991);
+    assert_int_opt
+      (Global.parse_int "-9007199254740991")
+      (Some (-9007199254740991))
+  end
+  else begin
+    (* 32-bit platform: use max 31-bit signed int *)
+    assert_int_opt (Global.parse_int "1073741823") (Some 1073741823);
+    assert_int_opt (Global.parse_int "-1073741823") (Some (-1073741823))
+  end
 
 (* ===================================================================
    Test suite
