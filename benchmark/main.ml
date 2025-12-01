@@ -3,6 +3,8 @@
 module RegExp = Quickjs.RegExp
 module Unicode = Quickjs.Unicode
 module Dtoa = Quickjs.Dtoa
+module Atod = Quickjs.Atod
+module Itoa = Quickjs.Itoa
 
 type result = { time_per_op_us : float; words_per_op : float }
 
@@ -75,19 +77,19 @@ let run_quick () =
     (bench (fun () -> Unicode.is_id_start (Uchar.of_char 'a')));
 
   section "Dtoa";
-  print "to_string integer" (bench (fun () -> Dtoa.Dtoa.to_string 42.0));
+  print "to_string integer" (bench (fun () -> Dtoa.to_string 42.0));
   print "to_string decimal"
-    (bench (fun () -> Dtoa.Dtoa.to_string 3.14159265358979));
-  print "to_fixed 2" (bench (fun () -> Dtoa.Dtoa.to_fixed 2 3.14159));
-  print "parse integer" (bench (fun () -> Dtoa.Atod.parse "12345"));
-  print "parse decimal" (bench (fun () -> Dtoa.Atod.parse "3.14159"));
+    (bench (fun () -> Dtoa.to_string 3.14159265358979));
+  print "to_fixed 2" (bench (fun () -> Dtoa.to_fixed 2 3.14159));
+  print "parse integer" (bench (fun () -> Atod.parse "12345"));
+  print "parse decimal" (bench (fun () -> Atod.parse "3.14159"));
 
-  section "IntToString";
-  print "of_int" (bench (fun () -> Dtoa.IntToString.of_int 123456789));
+  section "Itoa";
+  print "of_int" (bench (fun () -> Itoa.of_int 123456789));
   print "of_int64"
-    (bench (fun () -> Dtoa.IntToString.of_int64 9223372036854775807L));
+    (bench (fun () -> Itoa.of_int64 9223372036854775807L));
   print "of_int_radix 16"
-    (bench (fun () -> Dtoa.IntToString.of_int_radix ~radix:16 255))
+    (bench (fun () -> Itoa.of_int_radix ~radix:16 255))
 
 (* === STDLIB COMPARISON === *)
 let run_compare () =
@@ -112,28 +114,28 @@ let run_compare () =
   Printf.printf "  (quickjs handles full Unicode, stdlib is ASCII-only)\n";
 
   section "Dtoa vs stdlib";
-  let ours = bench (fun () -> Dtoa.Dtoa.to_string 3.14159) in
+  let ours = bench (fun () -> Dtoa.to_string 3.14159) in
   let theirs = bench (fun () -> string_of_float 3.14159) in
   print "quickjs.Dtoa.to_string" ours;
   print "string_of_float" theirs;
   compare ~name:"-> float->string" ~ours ~theirs;
 
-  let ours = bench (fun () -> Dtoa.Atod.parse "3.14159") in
+  let ours = bench (fun () -> Atod.parse "3.14159") in
   let theirs = bench (fun () -> float_of_string "3.14159") in
   print "quickjs.Atod.parse" ours;
   print "float_of_string" theirs;
   compare ~name:"-> string->float" ~ours ~theirs;
 
-  section "IntToString vs stdlib";
-  let ours = bench (fun () -> Dtoa.IntToString.of_int 123456789) in
+  section "Itoa vs stdlib";
+  let ours = bench (fun () -> Itoa.of_int 123456789) in
   let theirs = bench (fun () -> Int.to_string 123456789) in
-  print "quickjs.IntToString.of_int" ours;
+  print "quickjs.Itoa.of_int" ours;
   print "Int.to_string" theirs;
   compare ~name:"-> int->string" ~ours ~theirs;
 
-  let ours = bench (fun () -> Dtoa.IntToString.of_int64 9223372036854775807L) in
+  let ours = bench (fun () -> Itoa.of_int64 9223372036854775807L) in
   let theirs = bench (fun () -> Int64.to_string 9223372036854775807L) in
-  print "quickjs.IntToString.of_int64" ours;
+  print "quickjs.Itoa.of_int64" ours;
   print "Int64.to_string" theirs;
   compare ~name:"-> int64->string" ~ours ~theirs
 
@@ -171,14 +173,14 @@ let run_scaling () =
     ("pi", 3.141592653589793);
   ]
   |> List.iter (fun (name, num) ->
-      print name (bench (fun () -> Dtoa.Dtoa.to_string num)));
+      print name (bench (fun () -> Dtoa.to_string num)));
 
-  section "IntToString - radix";
+  section "Itoa - radix";
   [ 2; 8; 10; 16; 36 ]
   |> List.iter (fun radix ->
       print
         (Printf.sprintf "radix %d" radix)
-        (bench (fun () -> Dtoa.IntToString.of_int_radix ~radix 123456789)))
+        (bench (fun () -> Itoa.of_int_radix ~radix 123456789)))
 
 (* === EDGE CASES === *)
 let run_edge () =
@@ -187,16 +189,16 @@ let run_edge () =
   section "Empty/minimal inputs";
   print "lowercase empty" (bench (fun () -> Unicode.lowercase ""));
   print "lowercase 1 char" (bench (fun () -> Unicode.lowercase "A"));
-  print "parse empty" (bench (fun () -> Dtoa.Atod.parse ""));
-  print "IntToString 0" (bench (fun () -> Dtoa.IntToString.of_int 0));
+  print "parse empty" (bench (fun () -> Atod.parse ""));
+  print "Itoa 0" (bench (fun () -> Itoa.of_int 0));
 
   section "Special floats";
-  print "to_string NaN" (bench (fun () -> Dtoa.Dtoa.to_string Float.nan));
+  print "to_string NaN" (bench (fun () -> Dtoa.to_string Float.nan));
   print "to_string Infinity"
-    (bench (fun () -> Dtoa.Dtoa.to_string Float.infinity));
+    (bench (fun () -> Dtoa.to_string Float.infinity));
   print "to_string -Infinity"
-    (bench (fun () -> Dtoa.Dtoa.to_string Float.neg_infinity));
-  print "to_string -0.0" (bench (fun () -> Dtoa.Dtoa.to_string (-0.0)));
+    (bench (fun () -> Dtoa.to_string Float.neg_infinity));
+  print "to_string -0.0" (bench (fun () -> Dtoa.to_string (-0.0)));
 
   section "Unicode edge cases";
   print "German eszett uppercase" (bench (fun () -> Unicode.uppercase "ß"));
@@ -206,10 +208,10 @@ let run_edge () =
     (bench (fun () -> Unicode.is_id_start (Uchar.of_int 0x1F600)));
 
   section "Boundary integers";
-  print "max_int" (bench (fun () -> Dtoa.IntToString.of_int max_int));
-  print "min_int" (bench (fun () -> Dtoa.IntToString.of_int min_int));
-  print "int64 max" (bench (fun () -> Dtoa.IntToString.of_int64 Int64.max_int));
-  print "int64 min" (bench (fun () -> Dtoa.IntToString.of_int64 Int64.min_int))
+  print "max_int" (bench (fun () -> Itoa.of_int max_int));
+  print "min_int" (bench (fun () -> Itoa.of_int min_int));
+  print "int64 max" (bench (fun () -> Itoa.of_int64 Int64.max_int));
+  print "int64 min" (bench (fun () -> Itoa.of_int64 Int64.min_int))
 
 (* === MAIN === *)
 let usage =

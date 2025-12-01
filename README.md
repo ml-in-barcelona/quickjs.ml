@@ -12,6 +12,42 @@ This project exposes two libraries:
 
 The purpose of this project is to provide the same behaviour as the JavaScript engines from browsers ([SpiderMonkey](https://spidermonkey.dev), [JavaScriptCore](https://developer.apple.com/documentation/javascriptcore), [ChakraCore](https://github.com/chakra-core/ChakraCore), [v8](https://v8.dev/)) into native OCaml. So code that runs in the browser (via [Melange](https://melange.re)) can be run in native with the same results.
 
+### Test262 Compatibility
+
+We are translating [TC39/test262](https://github.com/tc39/test262) tests into OCaml to ensure full compatibility with the ECMAScript specification. This allows us to verify that our implementations behave exactly as expected by the JavaScript standard, guaranteeing consistent behaviour between browser engines and native OCaml.
+
+### Usage
+
+```ocaml
+open Quickjs
+
+(* RegExp - JavaScript-compatible regular expressions *)
+let re = RegExp.compile ~flags:"g" "(?<word>\\w+)" |> Result.get_ok in
+let result = RegExp.exec re "hello world" in
+RegExp.captures result        (* [| "hello"; "hello" |] *)
+RegExp.group "word" result    (* Some "hello" *)
+RegExp.exec re "hello world"  (* next match: "world" *)
+
+(* Unicode - Full Unicode support for text processing *)
+Unicode.uppercase "straße"            (* "STRASSE" - proper case folding *)
+Unicode.lowercase "ÉCOLE"             (* "école" *)
+Unicode.normalize NFC "cafe\u{0301}"  (* Some "café" - composed form *)
+Unicode.is_id_start (Uchar.of_char 'a')  (* true - valid JS identifier start *)
+
+(* Dtoa - double to string (JavaScript-identical number formatting) *)
+Dtoa.to_string 0.1                (* "0.1" - no floating point artifacts *)
+Dtoa.to_fixed 2 3.14159           (* "3.14" *)
+Dtoa.to_radix 16 255.0            (* "ff" *)
+
+(* Atod - string to double (JavaScript-compatible parsing) *)
+Atod.parse "3.14"                 (* Some 3.14 *)
+Atod.parse ~options:Atod.js_options "0xff"  (* Some 255.0 *)
+
+(* Itoa - fast integer to string *)
+Itoa.of_int 42                    (* "42" *)
+Itoa.of_int_radix ~radix:16 255   (* "ff" *)
+```
+
 ### Documentation
 
 [API reference](https://ml-in-barcelona.github.io/quickjs.ml/docs/local/quickjs/index.html)
