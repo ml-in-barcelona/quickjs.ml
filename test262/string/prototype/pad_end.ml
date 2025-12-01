@@ -35,8 +35,7 @@ let empty_string () =
 let fill_string_truncation () =
   assert_string (String.Prototype.pad_end_with 7 "abc" "x") "xabcabc"
 
-let unicode_string () =
-  assert_string (String.Prototype.pad_end 5 "日本") "日本   "
+let unicode_string () = assert_string (String.Prototype.pad_end 5 "日本") "日本   "
 
 let unicode_fill () =
   assert_string (String.Prototype.pad_end_with 5 "日" "ab") "ab日日日"
@@ -61,4 +60,3 @@ let tests =
     test "padEnd: surrogate pairs" surrogate_pairs;
     test "padEnd: negative length" negative_length;
   ]
-

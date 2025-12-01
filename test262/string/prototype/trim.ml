@@ -30,13 +30,12 @@ let trailing_whitespace () =
 
 let mixed_whitespace () =
   assert_string (String.Prototype.trim " \t\n hello \t\n ") "hello";
-  assert_string (String.Prototype.trim "\r\n\t hello world \t\r\n") "hello world"
+  assert_string
+    (String.Prototype.trim "\r\n\t hello world \t\r\n")
+    "hello world"
 
-let empty_string () =
-  assert_string (String.Prototype.trim "") ""
-
-let no_whitespace () =
-  assert_string (String.Prototype.trim "hello") "hello"
+let empty_string () = assert_string (String.Prototype.trim "") ""
+let no_whitespace () = assert_string (String.Prototype.trim "hello") "hello"
 
 let unicode_whitespace () =
   (* Various Unicode whitespace characters *)
@@ -64,7 +63,7 @@ let tests =
     test "S15.5.4.20_A5: empty string" empty_string;
     test "S15.5.4.20_A6: no whitespace" no_whitespace;
     test "S15.5.4.20_A7: Unicode whitespace" unicode_whitespace;
-    test "S15.5.4.20_A8: preserves internal whitespace" preserves_internal_whitespace;
+    test "S15.5.4.20_A8: preserves internal whitespace"
+      preserves_internal_whitespace;
     test "S15.5.4.20_A9: Unicode content" unicode_content;
   ]
-

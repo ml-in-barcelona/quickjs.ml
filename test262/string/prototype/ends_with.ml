@@ -61,4 +61,3 @@ let tests =
     test "endsWith: position bounds" position_bounds;
     test "endsWith: search longer than string" search_longer_than_string;
   ]
-

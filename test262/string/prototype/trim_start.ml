@@ -28,8 +28,7 @@ let preserves_trailing () =
   assert_string (String.Prototype.trim_start "  hello  ") "hello  ";
   assert_string (String.Prototype.trim_start "hello  ") "hello  "
 
-let empty_string () =
-  assert_string (String.Prototype.trim_start "") ""
+let empty_string () = assert_string (String.Prototype.trim_start "") ""
 
 let no_leading_whitespace () =
   assert_string (String.Prototype.trim_start "hello  ") "hello  "
@@ -52,4 +51,3 @@ let tests =
     test "trimStart: Unicode whitespace" unicode_whitespace;
     test "trimStart: Unicode content" unicode_content;
   ]
-

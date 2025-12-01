@@ -42,8 +42,12 @@ let unicode_starts_with () =
   assert_bool (String.Prototype.starts_with "café" "café au lait") true
 
 let position_bounds () =
-  assert_bool (String.Prototype.starts_with_from "hello" (-10) "hello world") true;
-  assert_bool (String.Prototype.starts_with_from "hello" 100 "hello world") false
+  assert_bool
+    (String.Prototype.starts_with_from "hello" (-10) "hello world")
+    true;
+  assert_bool
+    (String.Prototype.starts_with_from "hello" 100 "hello world")
+    false
 
 let search_longer_than_string () =
   assert_bool (String.Prototype.starts_with "hello world!" "hello") false
@@ -59,4 +63,3 @@ let tests =
     test "startsWith: position bounds" position_bounds;
     test "startsWith: search longer than string" search_longer_than_string;
   ]
-

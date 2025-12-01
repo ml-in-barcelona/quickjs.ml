@@ -14,8 +14,12 @@ module String = Quickjs.String
    =================================================================== *)
 
 let basic_substring () =
-  assert_string (String.Prototype.substring ~start:0 ~end_:5 "hello world") "hello";
-  assert_string (String.Prototype.substring ~start:6 ~end_:11 "hello world") "world"
+  assert_string
+    (String.Prototype.substring ~start:0 ~end_:5 "hello world")
+    "hello";
+  assert_string
+    (String.Prototype.substring ~start:6 ~end_:11 "hello world")
+    "world"
 
 let from_start_only () =
   assert_string (String.Prototype.substring_from 6 "hello world") "world";
@@ -24,11 +28,15 @@ let from_start_only () =
 let swapped_arguments () =
   (* Unlike slice, substring swaps start/end if start > end *)
   assert_string (String.Prototype.substring ~start:5 ~end_:0 "hello") "hello";
-  assert_string (String.Prototype.substring ~start:11 ~end_:6 "hello world") "world"
+  assert_string
+    (String.Prototype.substring ~start:11 ~end_:6 "hello world")
+    "world"
 
 let negative_indices () =
   (* Negative indices are treated as 0 *)
-  assert_string (String.Prototype.substring ~start:(-5) ~end_:5 "hello world") "hello";
+  assert_string
+    (String.Prototype.substring ~start:(-5) ~end_:5 "hello world")
+    "hello";
   assert_string (String.Prototype.substring ~start:0 ~end_:(-1) "hello") ""
 
 let nan_indices () =
@@ -61,4 +69,3 @@ let tests =
     test "S15.5.4.15_A7: out of bounds" out_of_bounds;
     test "S15.5.4.15_A8: Unicode handling" unicode_handling;
   ]
-

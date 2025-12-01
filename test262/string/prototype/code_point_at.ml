@@ -25,8 +25,7 @@ let out_of_bounds () =
   assert_int_opt (String.Prototype.code_point_at 5 "hello") None;
   assert_int_opt (String.Prototype.code_point_at 100 "hello") None
 
-let empty_string () =
-  assert_int_opt (String.Prototype.code_point_at 0 "") None
+let empty_string () = assert_int_opt (String.Prototype.code_point_at 0 "") None
 
 let unicode_bmp () =
   (* BMP characters - same as charCodeAt *)
@@ -66,4 +65,3 @@ let tests =
     test "codePointAt: mixed string" mixed_string;
     test "codePointAt: lone surrogates" lone_surrogates;
   ]
-

@@ -554,7 +554,8 @@ module Prototype = struct
       - $` -> portion before match
       - $' -> portion after match
       - $n or $nn -> capture group n (for regex) *)
-  let process_replacement ~replacement ~matched ~before_match ~after_match ~captures =
+  let process_replacement ~replacement ~matched ~before_match ~after_match
+      ~captures =
     let len = Stdlib.String.length replacement in
     if len = 0 then ""
     else
@@ -577,22 +578,24 @@ module Prototype = struct
           | '\'' ->
               Buffer.add_string buf after_match;
               i := !i + 2
-          | '0'..'9' ->
+          | '0' .. '9' ->
               (* Parse capture group number - could be 1 or 2 digits *)
               let digit1 = Char.code next - Char.code '0' in
               if !i + 2 < len then
                 let next2 = Stdlib.String.get replacement (!i + 2) in
                 match next2 with
-                | '0'..'9' ->
+                | '0' .. '9' ->
                     let digit2 = Char.code next2 - Char.code '0' in
-                    let n = digit1 * 10 + digit2 in
+                    let n = (digit1 * 10) + digit2 in
                     if n < Array.length captures && n > 0 then begin
                       Buffer.add_string buf captures.(n);
                       i := !i + 3
-                    end else if digit1 < Array.length captures && digit1 > 0 then begin
+                    end
+                    else if digit1 < Array.length captures && digit1 > 0 then begin
                       Buffer.add_string buf captures.(digit1);
                       i := !i + 2
-                    end else begin
+                    end
+                    else begin
                       Buffer.add_char buf '$';
                       incr i
                     end
@@ -600,14 +603,16 @@ module Prototype = struct
                     if digit1 < Array.length captures && digit1 > 0 then begin
                       Buffer.add_string buf captures.(digit1);
                       i := !i + 2
-                    end else begin
+                    end
+                    else begin
                       Buffer.add_char buf '$';
                       incr i
                     end
               else if digit1 < Array.length captures && digit1 > 0 then begin
                 Buffer.add_string buf captures.(digit1);
                 i := !i + 2
-              end else begin
+              end
+              else begin
                 Buffer.add_char buf '$';
                 incr i
               end
@@ -630,12 +635,9 @@ module Prototype = struct
       let search_len = utf16_length search in
       let before_match = slice ~start:0 ~end_:idx s in
       let after_match = slice_from (idx + search_len) s in
-      let processed = process_replacement
-        ~replacement
-        ~matched:search
-        ~before_match
-        ~after_match
-        ~captures:[| search |]
+      let processed =
+        process_replacement ~replacement ~matched:search ~before_match
+          ~after_match ~captures:[| search |]
       in
       before_match ^ processed ^ after_match
 
@@ -652,12 +654,9 @@ module Prototype = struct
           let match_len = utf16_length match_str in
           let before_match = slice ~start:0 ~end_:idx s in
           let after_match = slice_from (idx + match_len) s in
-          let processed = process_replacement
-            ~replacement
-            ~matched:match_str
-            ~before_match
-            ~after_match
-            ~captures:caps
+          let processed =
+            process_replacement ~replacement ~matched:match_str ~before_match
+              ~after_match ~captures:caps
           in
           before_match ^ processed ^ after_match
 
@@ -680,12 +679,10 @@ module Prototype = struct
             let before_match = slice ~start:!last_index ~end_:idx !current in
             let match_end = idx + utf16_length match_str in
             let after_match = slice_from match_end !current in
-            let processed = process_replacement
-              ~replacement
-              ~matched:match_str
-              ~before_match:(slice ~start:0 ~end_:idx !current)
-              ~after_match
-              ~captures:caps
+            let processed =
+              process_replacement ~replacement ~matched:match_str
+                ~before_match:(slice ~start:0 ~end_:idx !current)
+                ~after_match ~captures:caps
             in
             parts := processed :: before_match :: !parts;
             last_index := match_end;
@@ -712,12 +709,9 @@ module Prototype = struct
           let match_len = utf16_length match_str in
           let before_match = slice ~start:0 ~end_:idx s in
           let after_match = slice_from (idx + match_len) s in
-          let processed = process_replacement
-            ~replacement
-            ~matched:match_str
-            ~before_match
-            ~after_match
-            ~captures:caps
+          let processed =
+            process_replacement ~replacement ~matched:match_str ~before_match
+              ~after_match ~captures:caps
           in
           before_match ^ processed ^ after_match
 
@@ -728,19 +722,28 @@ module Prototype = struct
       let arr = to_utf16_array s in
       let len = Array.length arr in
       if len = 0 then
-        process_replacement ~replacement ~matched:"" ~before_match:"" ~after_match:"" ~captures:[| "" |]
+        process_replacement ~replacement ~matched:"" ~before_match:""
+          ~after_match:"" ~captures:[| "" |]
       else begin
         let parts = ref [] in
         (* Process each position *)
         for i = len - 1 downto 0 do
           let char_str = from_utf16_array [| arr.(i) |] in
           let before_match = from_utf16_array (Array.sub arr 0 i) in
-          let after_match = from_utf16_array (Array.sub arr (i + 1) (len - i - 1)) in
-          let processed = process_replacement ~replacement ~matched:"" ~before_match ~after_match ~captures:[| "" |] in
+          let after_match =
+            from_utf16_array (Array.sub arr (i + 1) (len - i - 1))
+          in
+          let processed =
+            process_replacement ~replacement ~matched:"" ~before_match
+              ~after_match ~captures:[| "" |]
+          in
           parts := char_str :: processed :: !parts
         done;
         (* Add replacement at start *)
-        let first_processed = process_replacement ~replacement ~matched:"" ~before_match:"" ~after_match:s ~captures:[| "" |] in
+        let first_processed =
+          process_replacement ~replacement ~matched:"" ~before_match:""
+            ~after_match:s ~captures:[| "" |]
+        in
         Stdlib.String.concat "" (first_processed :: !parts)
       end
     end
@@ -748,16 +751,17 @@ module Prototype = struct
       let search_len = utf16_length search in
       let rec loop current_s acc_parts original_s =
         let idx = index_of search current_s in
-        if idx < 0 then Stdlib.String.concat "" (List.rev (current_s :: acc_parts))
+        if idx < 0 then
+          Stdlib.String.concat "" (List.rev (current_s :: acc_parts))
         else
           let before_match = slice ~start:0 ~end_:idx current_s in
           let after_match = slice_from (idx + search_len) current_s in
-          let processed = process_replacement
-            ~replacement
-            ~matched:search
-            ~before_match:(acc_parts |> List.rev |> Stdlib.String.concat "" |> fun prefix -> prefix ^ before_match)
-            ~after_match
-            ~captures:[| search |]
+          let processed =
+            process_replacement ~replacement ~matched:search
+              ~before_match:
+                ( acc_parts |> List.rev |> Stdlib.String.concat ""
+                |> fun prefix -> prefix ^ before_match )
+              ~after_match ~captures:[| search |]
           in
           loop after_match (processed :: before_match :: acc_parts) original_s
       in

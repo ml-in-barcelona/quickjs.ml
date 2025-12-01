@@ -17,18 +17,14 @@ let basic_repeat () =
   assert_string (String.Prototype.repeat 3 "abc") "abcabcabc";
   assert_string (String.Prototype.repeat 2 "hello") "hellohello"
 
-let zero_count () =
-  assert_string (String.Prototype.repeat 0 "abc") ""
-
-let one_count () =
-  assert_string (String.Prototype.repeat 1 "abc") "abc"
+let zero_count () = assert_string (String.Prototype.repeat 0 "abc") ""
+let one_count () = assert_string (String.Prototype.repeat 1 "abc") "abc"
 
 let empty_string () =
   assert_string (String.Prototype.repeat 5 "") "";
   assert_string (String.Prototype.repeat 0 "") ""
 
-let single_char () =
-  assert_string (String.Prototype.repeat 5 "a") "aaaaa"
+let single_char () = assert_string (String.Prototype.repeat 5 "a") "aaaaa"
 
 let unicode_repeat () =
   assert_string (String.Prototype.repeat 3 "日") "日日日";
@@ -53,8 +49,7 @@ let whitespace () =
   assert_string (String.Prototype.repeat 3 " ") "   ";
   assert_string (String.Prototype.repeat 2 "\t") "\t\t"
 
-let multiline () =
-  assert_string (String.Prototype.repeat 2 "a\nb") "a\nba\nb"
+let multiline () = assert_string (String.Prototype.repeat 2 "a\nb") "a\nba\nb"
 
 let tests =
   [
@@ -69,4 +64,3 @@ let tests =
     test "repeat: whitespace" whitespace;
     test "repeat: multiline" multiline;
   ]
-

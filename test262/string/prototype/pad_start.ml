@@ -68,4 +68,3 @@ let tests =
     test "padStart: surrogate pairs" surrogate_pairs;
     test "padStart: negative length" negative_length;
   ]
-

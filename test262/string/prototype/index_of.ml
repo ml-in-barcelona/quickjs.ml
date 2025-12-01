@@ -77,4 +77,3 @@ let tests =
     test "S15.5.4.7_A9: Unicode search" unicode_search;
     test "S15.5.4.7_A10: Unicode surrogate pairs" unicode_surrogate_pairs;
   ]
-

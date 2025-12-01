@@ -58,8 +58,7 @@ let unicode_match () =
 let case_insensitive () =
   let result = String.Prototype.match_flags "hello" "i" "HELLO world" in
   match result with
-  | Some matches ->
-      assert_string matches.(0) "HELLO"
+  | Some matches -> assert_string matches.(0) "HELLO"
   | None -> Alcotest.fail "Expected match"
 
 let empty_string () =
@@ -80,4 +79,3 @@ let tests =
     test "S15.5.4.10_A6: case insensitive" case_insensitive;
     test "S15.5.4.10_A7: empty string" empty_string;
   ]
-

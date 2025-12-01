@@ -16,7 +16,9 @@ module String = Quickjs.String
 let basic_slice () =
   assert_string (String.Prototype.slice ~start:0 ~end_:5 "hello world") "hello";
   assert_string (String.Prototype.slice ~start:6 ~end_:11 "hello world") "world";
-  assert_string (String.Prototype.slice ~start:0 ~end_:11 "hello world") "hello world"
+  assert_string
+    (String.Prototype.slice ~start:0 ~end_:11 "hello world")
+    "hello world"
 
 let from_start_only () =
   (* When end is omitted, slice to end of string *)
@@ -25,9 +27,15 @@ let from_start_only () =
 
 let negative_indices () =
   (* Negative indices count from end *)
-  assert_string (String.Prototype.slice ~start:(-5) ~end_:11 "hello world") "world";
-  assert_string (String.Prototype.slice ~start:0 ~end_:(-6) "hello world") "hello";
-  assert_string (String.Prototype.slice ~start:(-5) ~end_:(-1) "hello world") "worl"
+  assert_string
+    (String.Prototype.slice ~start:(-5) ~end_:11 "hello world")
+    "world";
+  assert_string
+    (String.Prototype.slice ~start:0 ~end_:(-6) "hello world")
+    "hello";
+  assert_string
+    (String.Prototype.slice ~start:(-5) ~end_:(-1) "hello world")
+    "worl"
 
 let empty_result () =
   (* When start >= end, result is empty *)
@@ -67,4 +75,3 @@ let tests =
     test "S15.5.4.13_A7: Unicode BMP" unicode_bmp;
     test "S15.5.4.13_A8: Unicode surrogate pairs" unicode_surrogate_pairs;
   ]
-

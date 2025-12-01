@@ -179,4 +179,5 @@ let assert_string_opt left right =
 (* ===== Unicode assertions ===== *)
 
 let assert_uchar left right =
-  Alcotest.(check int) "Uchar should be equal" (Uchar.to_int right) (Uchar.to_int left)
+  Alcotest.(check int)
+    "Uchar should be equal" (Uchar.to_int right) (Uchar.to_int left)

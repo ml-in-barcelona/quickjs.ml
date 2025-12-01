@@ -24,8 +24,7 @@ let out_of_bounds () =
   assert_string (String.Prototype.char_at 5 "hello") "";
   assert_string (String.Prototype.char_at 100 "hello") ""
 
-let empty_string () =
-  assert_string (String.Prototype.char_at 0 "") ""
+let empty_string () = assert_string (String.Prototype.char_at 0 "") ""
 
 let unicode_bmp () =
   (* BMP characters (single UTF-16 code unit) *)
@@ -61,4 +60,3 @@ let tests =
     test "S15.5.4.4_A5: Unicode surrogate pairs" unicode_surrogate_pairs;
     test "S15.5.4.4_A6: mixed content" mixed_content;
   ]
-

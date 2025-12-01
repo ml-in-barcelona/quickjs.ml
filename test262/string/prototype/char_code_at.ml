@@ -27,8 +27,7 @@ let out_of_bounds () =
   assert_int_opt (String.Prototype.char_code_at 5 "hello") None;
   assert_int_opt (String.Prototype.char_code_at 100 "hello") None
 
-let empty_string () =
-  assert_int_opt (String.Prototype.char_code_at 0 "") None
+let empty_string () = assert_int_opt (String.Prototype.char_code_at 0 "") None
 
 let unicode_bmp () =
   (* BMP characters - returns their Unicode code point *)
@@ -60,4 +59,3 @@ let tests =
     test "S15.5.4.5_A5: Unicode surrogate pairs" unicode_surrogate_pairs;
     test "S15.5.4.5_A6: special characters" special_characters;
   ]
-

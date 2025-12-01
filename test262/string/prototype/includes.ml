@@ -28,8 +28,7 @@ let empty_search_string () =
   assert_bool (String.Prototype.includes "" "hello") true;
   assert_bool (String.Prototype.includes "" "") true
 
-let empty_string () =
-  assert_bool (String.Prototype.includes "a" "") false
+let empty_string () = assert_bool (String.Prototype.includes "a" "") false
 
 let case_sensitive () =
   assert_bool (String.Prototype.includes "Hello" "hello world") false;
@@ -56,4 +55,3 @@ let tests =
     test "includes: Unicode" unicode_includes;
     test "includes: position bounds" position_bounds;
   ]
-

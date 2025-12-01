@@ -14,7 +14,9 @@ module String = Quickjs.String
    =================================================================== *)
 
 let string_replace_all () =
-  assert_string (String.Prototype.replace_all "o" "0" "hello world") "hell0 w0rld";
+  assert_string
+    (String.Prototype.replace_all "o" "0" "hello world")
+    "hell0 w0rld";
   assert_string (String.Prototype.replace_all "l" "L" "hello") "heLLo"
 
 let no_match () =
@@ -44,7 +46,9 @@ let overlapping_matches () =
 
 let regex_replace_all () =
   (* With regex (must have global flag) *)
-  assert_string (String.Prototype.replace_all_regex "[0-9]" "X" "a1b2c3") "aXbXcX"
+  assert_string
+    (String.Prototype.replace_all_regex "[0-9]" "X" "a1b2c3")
+    "aXbXcX"
 
 let tests =
   [
@@ -58,4 +62,3 @@ let tests =
     test "replaceAll: overlapping matches" overlapping_matches;
     test "replaceAll: regex" regex_replace_all;
   ]
-

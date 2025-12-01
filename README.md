@@ -1,10 +1,15 @@
 # quickjs
 
-**quickjs.ml** is a set of OCaml bindings for [QuickJS](https://bellard.org/quickjs), a small and embeddable JavaScript engine. It supports the ES2020 specification including modules, asynchronous generators, proxies and BigInt.
+**quickjs.ml** is a set of OCaml bindings to some libraries from [QuickJS](https://bellard.org/quickjs), a small and embeddable JavaScript engine. It supports the ES2020 specification including modules, asynchronous generators, proxies and BigInt.
 
 This project exposes two libraries:
 
-- **`quickjs.bindings`** the raw QuickJS C API
+- **`quickjs.bindings`** bindings to the C functions for QuickJS utilities:
+  - `Libregexp`: Regular expression engine (libregexp)
+  - `Libunicode`: Unicode character utilities (libunicode)
+  - `Dtoa`: Number ↔ String conversion (js_dtoa)
+  - `Atod`: String ↔ Number conversion (js_atod)
+  - `Cutils`: Integer to string conversion (itoa family)
 
 - **`quickjs`** a polished API on top of `quickjs.bindings` with the same shape as the JavaScript API
 

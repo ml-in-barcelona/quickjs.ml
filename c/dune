@@ -1,0 +1,6 @@
+(library
+ (name quickjs_c)
+ (public_name quickjs.c)
+ (wrapped false)
+ (libraries
+  (re_export quickjs.bindings)))

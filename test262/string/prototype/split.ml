@@ -108,6 +108,6 @@ let tests =
     test "S15.5.4.14_A9: consecutive separators" consecutive_separators;
     test "S15.5.4.14_A10: separator at start/end" separator_at_start_end;
     test "S15.5.4.14_A11: Unicode separator" unicode_separator;
-    test "S15.5.4.14_A12: Unicode string empty separator" unicode_string_empty_separator;
+    test "S15.5.4.14_A12: Unicode string empty separator"
+      unicode_string_empty_separator;
   ]
-

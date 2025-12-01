@@ -119,7 +119,8 @@ let partial_valid_digits () =
 let large_numbers () =
   (* JavaScript MAX_SAFE_INTEGER is 2^53-1 = 9007199254740991 *)
   assert_int_opt (Global.parse_int "9007199254740991") (Some 9007199254740991);
-  assert_int_opt (Global.parse_int "-9007199254740991")
+  assert_int_opt
+    (Global.parse_int "-9007199254740991")
     (Some (-9007199254740991))
 
 (* ===================================================================

@@ -68,9 +68,7 @@ let parse_float ?(options = default_parse_options) str =
   in
   let tmp_mem = Ctypes.allocate_n Ctypes.uint64_t ~count:27 in
   let tmp_mem_ptr = Ctypes.to_voidp tmp_mem in
-  let result =
-    Bindings.C.Functions.js_atod str pnext options.radix flags tmp_mem_ptr
-  in
+  let result = Atod.parse str pnext options.radix flags tmp_mem_ptr in
   let next_ptr = Ctypes.( !@ ) pnext in
   if Ctypes.is_null next_ptr then None
   else if
@@ -90,9 +88,7 @@ let parse_float_partial ?(options = default_parse_options) str =
   in
   let tmp_mem = Ctypes.allocate_n Ctypes.uint64_t ~count:27 in
   let tmp_mem_ptr = Ctypes.to_voidp tmp_mem in
-  let result =
-    Bindings.C.Functions.js_atod str pnext options.radix flags tmp_mem_ptr
-  in
+  let result = Atod.parse str pnext options.radix flags tmp_mem_ptr in
   let next_ptr = Ctypes.( !@ ) pnext in
   if Ctypes.is_null next_ptr then None
   else
@@ -136,9 +132,7 @@ let parse_int ?(radix = 10) str =
       in
       let tmp_mem = Ctypes.allocate_n Ctypes.uint64_t ~count:27 in
       let tmp_mem_ptr = Ctypes.to_voidp tmp_mem in
-      let result =
-        Bindings.C.Functions.js_atod trimmed pnext radix flags tmp_mem_ptr
-      in
+      let result = Atod.parse trimmed pnext radix flags tmp_mem_ptr in
       (* Check for NaN first - this indicates parsing failed *)
       if Float.is_nan result then None
       else if not (Float.is_finite result) then None

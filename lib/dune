@@ -1,8 +1,3 @@
-(env
- (dev
-  (flags
-   (:standard -w -27))))
-
 (library
  (public_name quickjs)
- (libraries quickjs.bindings ctypes integers uutf))
+ (libraries quickjs.c ctypes integers uutf))

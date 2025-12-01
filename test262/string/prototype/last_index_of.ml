@@ -25,7 +25,9 @@ let not_found () =
 let with_position () =
   (* Search backwards from specified position *)
   assert_int (String.Prototype.last_index_of_from "o" 6 "hello world") 4;
-  assert_int (String.Prototype.last_index_of_from "hello" 5 "hello world hello") 0
+  assert_int
+    (String.Prototype.last_index_of_from "hello" 5 "hello world hello")
+    0
 
 let empty_search_string () =
   (* Empty search string found at end (or at specified position) *)
@@ -60,4 +62,3 @@ let tests =
     test "S15.5.4.8_A7: case sensitive" case_sensitive;
     test "S15.5.4.8_A8: Unicode search" unicode_search;
   ]
-

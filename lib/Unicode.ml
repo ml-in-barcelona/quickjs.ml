@@ -45,19 +45,19 @@ let codepoints_to_utf8 cps =
 
 let is_cased c =
   let cp = Unsigned.UInt32.of_int (Uchar.to_int c) in
-  Bindings.C.Functions.lre_is_cased cp <> 0
+  Libunicode.is_cased cp <> 0
 
 let is_case_ignorable c =
   let cp = Unsigned.UInt32.of_int (Uchar.to_int c) in
-  Bindings.C.Functions.lre_is_case_ignorable cp <> 0
+  Libunicode.is_case_ignorable cp <> 0
 
 let is_id_start c =
   let cp = Unsigned.UInt32.of_int (Uchar.to_int c) in
-  Bindings.C.Functions.lre_is_id_start cp <> 0
+  Libunicode.is_id_start cp <> 0
 
 let is_id_continue c =
   let cp = Unsigned.UInt32.of_int (Uchar.to_int c) in
-  Bindings.C.Functions.lre_is_id_continue cp <> 0
+  Libunicode.is_id_continue cp <> 0
 
 let is_whitespace c =
   let code = Uchar.to_int c in
@@ -67,7 +67,7 @@ let is_whitespace c =
     || code = 0x0D
   else
     let cp = Unsigned.UInt32.of_int code in
-    Bindings.C.Functions.lre_is_space_non_ascii cp <> 0
+    Libunicode.is_space_non_ascii cp <> 0
 
 (* Case Conversion - Single Character *)
 
@@ -75,7 +75,7 @@ let case_conv_char conv_type c =
   let cp = Unsigned.UInt32.of_int (Uchar.to_int c) in
   let res = Ctypes.CArray.make Ctypes.uint32_t lre_cc_res_len_max in
   let res_ptr = Ctypes.CArray.start res in
-  let count = Bindings.C.Functions.lre_case_conv res_ptr cp conv_type in
+  let count = Libunicode.case_conv res_ptr cp conv_type in
   let result = ref [] in
   for i = count - 1 downto 0 do
     let code = Unsigned.UInt32.to_int (Ctypes.CArray.get res i) in
@@ -97,7 +97,7 @@ let case_conv_string conv_type s =
   Array.iter
     (fun cp_int ->
       let cp = Unsigned.UInt32.of_int cp_int in
-      let count = Bindings.C.Functions.lre_case_conv res_ptr cp conv_type in
+      let count = Libunicode.case_conv res_ptr cp conv_type in
       for i = 0 to count - 1 do
         let code = Unsigned.UInt32.to_int (Ctypes.CArray.get res i) in
         let u =
@@ -117,7 +117,7 @@ let lowercase s = case_conv_string 1 s
 let canonicalize ?(unicode = true) c =
   let cp = Unsigned.UInt32.of_int (Uchar.to_int c) in
   let is_unicode = if unicode then 1 else 0 in
-  let result = Bindings.C.Functions.lre_canonicalize cp is_unicode in
+  let result = Libunicode.canonicalize cp is_unicode in
   if result >= 0 && result <= 0x10FFFF then Uchar.of_int result else c
 
 (* Normalization *)
@@ -137,9 +137,7 @@ let normalize form s =
         (Ctypes.from_voidp Ctypes.uint32_t Ctypes.null)
     in
     let n_type = normalization_to_int form in
-    let result_len =
-      Bindings.C.Functions.unicode_normalize_shim src_ptr len n_type dst_ptr
-    in
+    let result_len = Libunicode.normalize src_ptr len n_type dst_ptr in
     if result_len < 0 then None
     else
       let dst = Ctypes.(!@dst_ptr) in
@@ -147,5 +145,5 @@ let normalize form s =
       for i = 0 to result_len - 1 do
         result_cps.(i) <- Unsigned.UInt32.to_int Ctypes.(!@(dst +@ i))
       done;
-      Bindings.C.Functions.unicode_normalize_free dst;
+      Libunicode.normalize_free dst;
       Some (codepoints_to_utf8 result_cps)

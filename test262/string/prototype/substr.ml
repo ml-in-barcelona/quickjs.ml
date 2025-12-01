@@ -16,8 +16,12 @@ module String = Quickjs.String
    =================================================================== *)
 
 let basic_substr () =
-  assert_string (String.Prototype.substr ~start:0 ~length:5 "hello world") "hello";
-  assert_string (String.Prototype.substr ~start:6 ~length:5 "hello world") "world"
+  assert_string
+    (String.Prototype.substr ~start:0 ~length:5 "hello world")
+    "hello";
+  assert_string
+    (String.Prototype.substr ~start:6 ~length:5 "hello world")
+    "world"
 
 let from_start_only () =
   (* When length is omitted, extract to end of string *)
@@ -26,8 +30,12 @@ let from_start_only () =
 
 let negative_start () =
   (* Negative start counts from end *)
-  assert_string (String.Prototype.substr ~start:(-5) ~length:5 "hello world") "world";
-  assert_string (String.Prototype.substr ~start:(-11) ~length:5 "hello world") "hello"
+  assert_string
+    (String.Prototype.substr ~start:(-5) ~length:5 "hello world")
+    "world";
+  assert_string
+    (String.Prototype.substr ~start:(-11) ~length:5 "hello world")
+    "hello"
 
 let zero_length () =
   assert_string (String.Prototype.substr ~start:0 ~length:0 "hello") ""
@@ -65,4 +73,3 @@ let tests =
     test "B.2.3_A8: start exceeds string" start_exceeds_string;
     test "B.2.3_A9: Unicode handling" unicode_handling;
   ]
-

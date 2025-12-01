@@ -120,8 +120,8 @@ let compile ~flags re =
     else parsed_flags
   in
   let compiled_byte_code =
-    Bindings.C.Functions.lre_compile compiled_byte_code_len error_msg
-      size_of_error_msg input input_length flags Ctypes.null
+    Libregexp.compile compiled_byte_code_len error_msg size_of_error_msg input
+      input_length flags Ctypes.null
   in
   match Ctypes.is_null compiled_byte_code with
   | false -> Ok { bc = compiled_byte_code; flags; lastIndex = 0; source = re }
@@ -246,7 +246,7 @@ let utf8_to_utf16_index s utf8_idx =
 
 (* exec is not a binding to lre_exec but an implementation of `js_regexp_exec` *)
 let exec regexp input =
-  let capture_count = Bindings.C.Functions.lre_get_capture_count regexp.bc in
+  let capture_count = Libregexp.get_capture_count regexp.bc in
   let capture_size = capture_count * 2 in
   let capture = Ctypes.CArray.make (Ctypes.ptr Ctypes.uint8_t) capture_size in
   let start_capture = Ctypes.CArray.start capture in
@@ -301,8 +301,8 @@ let exec regexp input =
     Ok { captures = [||]; input; index = 0; groups = [] })
   else
     let exec_result =
-      Bindings.C.Functions.lre_exec start_capture regexp.bc buffer lastIndex
-        matching_length shift Ctypes.null
+      Libregexp.exec start_capture regexp.bc buffer lastIndex matching_length
+        shift Ctypes.null
     in
     (* Keep bufp alive until after lre_exec completes *)
     let _ = bufp in
@@ -313,9 +313,7 @@ let exec regexp input =
         let i = ref 0 in
         let index = ref 0 in
         let groups = ref [] in
-        let group_name_ptr =
-          ref (Bindings.C.Functions.lre_get_groupnames regexp.bc)
-        in
+        let group_name_ptr = ref (Libregexp.get_groupnames regexp.bc) in
         while !i < capture_size - 1 do
           let start_ptr = Ctypes.CArray.get capture !i in
           let end_ptr = Ctypes.CArray.get capture (!i + 1) in

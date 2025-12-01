@@ -79,15 +79,12 @@ module Prototype = struct
     let n_digits = n_digits_from_format options.format in
     validate_digits n_digits;
     let flags = options_to_flags options in
-    let max_len =
-      Bindings.C.Functions.js_dtoa_max_len d options.radix n_digits flags
-    in
+    let max_len = Dtoa.max_len d options.radix n_digits flags in
     let buf = Ctypes.allocate_n Ctypes.char ~count:(max_len + 1) in
     let tmp_mem = Ctypes.allocate_n Ctypes.uint64_t ~count:37 in
     let tmp_mem_ptr = Ctypes.to_voidp tmp_mem in
     let actual_len =
-      Bindings.C.Functions.js_dtoa buf d options.radix n_digits flags
-        tmp_mem_ptr
+      Dtoa.to_string buf d options.radix n_digits flags tmp_mem_ptr
     in
     Ctypes.string_from_ptr buf ~length:actual_len
 
@@ -143,22 +140,22 @@ end
 
 let of_int32 n =
   let buf = Ctypes.allocate_n Ctypes.char ~count:max_int_buf_size in
-  let len = Bindings.C.Functions.i32toa buf n in
+  let len = Cutils.i32toa buf n in
   Ctypes.string_from_ptr buf ~length:(Unsigned.Size_t.to_int len)
 
 let of_uint32 n =
   let buf = Ctypes.allocate_n Ctypes.char ~count:max_int_buf_size in
-  let len = Bindings.C.Functions.u32toa buf n in
+  let len = Cutils.u32toa buf n in
   Ctypes.string_from_ptr buf ~length:(Unsigned.Size_t.to_int len)
 
 let of_int64 n =
   let buf = Ctypes.allocate_n Ctypes.char ~count:max_int_buf_size in
-  let len = Bindings.C.Functions.i64toa buf n in
+  let len = Cutils.i64toa buf n in
   Ctypes.string_from_ptr buf ~length:(Unsigned.Size_t.to_int len)
 
 let of_uint64 n =
   let buf = Ctypes.allocate_n Ctypes.char ~count:max_int_buf_size in
-  let len = Bindings.C.Functions.u64toa buf n in
+  let len = Cutils.u64toa buf n in
   Ctypes.string_from_ptr buf ~length:(Unsigned.Size_t.to_int len)
 
 let of_int n = of_int64 (Int64.of_int n)
@@ -166,13 +163,13 @@ let of_int n = of_int64 (Int64.of_int n)
 let of_int32_radix ~radix n =
   validate_radix radix;
   let buf = Ctypes.allocate_n Ctypes.char ~count:max_int_buf_size in
-  let len = Bindings.C.Functions.i64toa_radix buf (Int64.of_int32 n) radix in
+  let len = Cutils.i64toa_radix buf (Int64.of_int32 n) radix in
   Ctypes.string_from_ptr buf ~length:(Unsigned.Size_t.to_int len)
 
 let of_int64_radix ~radix n =
   validate_radix radix;
   let buf = Ctypes.allocate_n Ctypes.char ~count:max_int_buf_size in
-  let len = Bindings.C.Functions.i64toa_radix buf n radix in
+  let len = Cutils.i64toa_radix buf n radix in
   Ctypes.string_from_ptr buf ~length:(Unsigned.Size_t.to_int len)
 
 let of_int_radix ~radix n = of_int64_radix ~radix (Int64.of_int n)

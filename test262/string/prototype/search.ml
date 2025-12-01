@@ -70,4 +70,3 @@ let tests =
     test "S15.5.4.12_A10: special regex chars" special_regex_chars;
     test "S15.5.4.12_A11: multiline" multiline;
   ]
-

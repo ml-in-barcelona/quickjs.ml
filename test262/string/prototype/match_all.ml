@@ -28,9 +28,7 @@ let no_matches () =
   assert_int (List.length results) 0
 
 let with_capture_groups () =
-  let results =
-    String.Prototype.match_all "(\\w+)@(\\w+)" "a@b and c@d"
-  in
+  let results = String.Prototype.match_all "(\\w+)@(\\w+)" "a@b and c@d" in
   assert_int (List.length results) 2;
   match results with
   | [ m1; m2 ] ->
@@ -82,4 +80,3 @@ let tests =
     test "matchAll: match indices" match_indices;
     test "matchAll: empty matches" empty_matches;
   ]
-
