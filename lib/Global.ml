@@ -98,9 +98,48 @@ let parse_float_partial ?(options = default_parse_options) str =
   else
     let str_start = Ctypes.coerce Ctypes.string (Ctypes.ptr Ctypes.char) str in
     let offset = Ctypes.ptr_diff str_start next_ptr in
-    if offset <= 0 then None
+    let str_len = Stdlib.String.length str in
+    if offset <= 0 || offset > str_len then None
     else
-      let remaining =
-        Stdlib.String.sub str offset (Stdlib.String.length str - offset)
-      in
+      let remaining = Stdlib.String.sub str offset (str_len - offset) in
       Some (result, remaining)
+
+(* JavaScript whitespace characters *)
+let is_js_whitespace c =
+  c = ' ' || c = '\t' || c = '\n' || c = '\r' || c = '\x0b' || c = '\x0c'
+
+(* Skip leading whitespace, return start index *)
+let skip_whitespace_index str =
+  let len = Stdlib.String.length str in
+  let rec find_start i =
+    if i >= len then len
+    else if is_js_whitespace (Stdlib.String.get str i) then find_start (i + 1)
+    else i
+  in
+  find_start 0
+
+let parse_int ?(radix = 10) str =
+  (* Validate radix: must be 0 (auto) or 2-36 *)
+  if radix <> 0 && (radix < 2 || radix > 36) then None
+  else
+    (* Step 1: Find where actual content starts (skip whitespace) *)
+    let ws_offset = skip_whitespace_index str in
+    let str_len = Stdlib.String.length str in
+    if ws_offset >= str_len then None
+    else
+      (* Create trimmed string for parsing *)
+      let trimmed = Stdlib.String.sub str ws_offset (str_len - ws_offset) in
+      let flags = js_atod_int_only lor js_atod_accept_bin_oct in
+      let pnext =
+        Ctypes.allocate (Ctypes.ptr Ctypes.char)
+          (Ctypes.from_voidp Ctypes.char Ctypes.null)
+      in
+      let tmp_mem = Ctypes.allocate_n Ctypes.uint64_t ~count:27 in
+      let tmp_mem_ptr = Ctypes.to_voidp tmp_mem in
+      let result =
+        Bindings.C.Functions.js_atod trimmed pnext radix flags tmp_mem_ptr
+      in
+      (* Check for NaN first - this indicates parsing failed *)
+      if Float.is_nan result then None
+      else if not (Float.is_finite result) then None
+      else Some (int_of_float result)

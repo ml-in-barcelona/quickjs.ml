@@ -6,7 +6,10 @@
     - dtoa: Number ↔ String conversion (js_dtoa, js_atod)
     - cutils: Integer to string conversion (itoa family) *)
 
+[@@@ocamlformat "disable"] (* We want to keep the comments aligned with the C code *)
+
 module Functions (F : Ctypes.FOREIGN) = struct
+
   let ( @-> ) = F.( @-> )
 
   (* =========================================================================

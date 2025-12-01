@@ -29,3 +29,9 @@ val parse_float_partial :
     floating-point number, returning the parsed value and remaining string.
     Returns [None] if no valid number is found at the start.
     @raise Invalid_argument if radix is invalid *)
+
+val parse_int : ?radix:int -> string -> int option
+(** [parse_int ?radix str] parses string [str] as an integer.
+    [radix] specifies the base (2-36), or 0 for auto-detect. Default is 10.
+    Returns [None] if parsing fails or radix is invalid.
+    Equivalent to JavaScript's parseInt(). *)
