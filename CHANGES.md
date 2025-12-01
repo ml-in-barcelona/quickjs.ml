@@ -11,6 +11,8 @@
   - New `Unicode` module for character-level operations (is_cased, is_id_start, canonicalize, etc.)
 - Added TC39/test262 test coverage for Number, String, Global, and Unicode modules
 - Added tests for special values (NaN, Infinity) in Number.Prototype methods
+- Fix String.Prototype.lastIndexOf
+- Fix String.Prototype.match
 
 ## 0.2.0
 

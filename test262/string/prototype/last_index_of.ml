@@ -39,8 +39,8 @@ let empty_string () =
   assert_int (String.Prototype.last_index_of "" "") 0
 
 let position_bounds () =
-  (* Negative position still searches the string *)
-  assert_int (String.Prototype.last_index_of_from "h" (-10) "hello") (-1);
+  (* Negative position is clamped to 0 per ECMA-262, so search starts at position 0 *)
+  assert_int (String.Prototype.last_index_of_from "h" (-10) "hello") 0;
   (* Position beyond string length searches entire string *)
   assert_int (String.Prototype.last_index_of_from "o" 100 "hello world") 7
 

@@ -258,20 +258,19 @@ module Prototype = struct
       let search_len = Array.length search_arr in
       if search_len > s_len then -1
       else
-        let start = min pos (s_len - search_len) in
-        if start < 0 then -1
-        else
-          let found = ref (-1) in
-          for i = start downto 0 do
-            let matches = ref true in
-            let j = ref 0 in
-            while !matches && !j < search_len do
-              if s_arr.(i + !j) <> search_arr.(!j) then matches := false;
-              incr j
-            done;
-            if !matches && !found = -1 then found := i
+        (* Per ECMA-262, negative positions are clamped to 0 *)
+        let start = max 0 (min pos (s_len - search_len)) in
+        let found = ref (-1) in
+        for i = start downto 0 do
+          let matches = ref true in
+          let j = ref 0 in
+          while !matches && !j < search_len do
+            if s_arr.(i + !j) <> search_arr.(!j) then matches := false;
+            incr j
           done;
-          !found
+          if !matches && !found = -1 then found := i
+        done;
+        !found
 
   (** includes - check if string contains search *)
   let includes search s = index_of search s >= 0

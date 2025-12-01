@@ -62,12 +62,11 @@ let case_insensitive () =
   | None -> Alcotest.fail "Expected match"
 
 let empty_string () =
+  (* /a*/ matches zero 'a's at the start of empty string, returning [""] *)
   let result = String.Prototype.match_ "a*" "" in
   match result with
-  | Some matches ->
-      (* Empty string matches a* with empty result *)
-      assert_string matches.(0) ""
-  | None -> ()
+  | Some matches -> assert_string matches.(0) ""
+  | None -> Alcotest.fail "Expected match (empty string matches a*)"
 
 let tests =
   [
