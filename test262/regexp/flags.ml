@@ -38,19 +38,19 @@ let flags_multiple () =
   (* Multiple flags - order is normalized in flags string *)
   let re = regexp_compile "abc" ~flags:"gi" in
   let flags = RegExp.flags re in
-  assert_bool (String.contains flags 'g') true;
-  assert_bool (String.contains flags 'i') true
+  assert_bool (Stdlib.String.contains flags 'g') true;
+  assert_bool (Stdlib.String.contains flags 'i') true
 
 let flags_all () =
   (* All flags *)
   let re = regexp_compile "abc" ~flags:"gimsuy" in
   let flags = RegExp.flags re in
-  assert_bool (String.contains flags 'g') true;
-  assert_bool (String.contains flags 'i') true;
-  assert_bool (String.contains flags 'm') true;
-  assert_bool (String.contains flags 's') true;
-  assert_bool (String.contains flags 'u') true;
-  assert_bool (String.contains flags 'y') true
+  assert_bool (Stdlib.String.contains flags 'g') true;
+  assert_bool (Stdlib.String.contains flags 'i') true;
+  assert_bool (Stdlib.String.contains flags 'm') true;
+  assert_bool (Stdlib.String.contains flags 's') true;
+  assert_bool (Stdlib.String.contains flags 'u') true;
+  assert_bool (Stdlib.String.contains flags 'y') true
 
 (* ===================================================================
    RegExp.prototype.global
@@ -217,11 +217,11 @@ let flags_consistency () =
   let re = regexp_compile "abc" ~flags:"gimsy" in
   let flags_str = RegExp.flags re in
 
-  assert_bool (RegExp.global re) (String.contains flags_str 'g');
-  assert_bool (RegExp.ignorecase re) (String.contains flags_str 'i');
-  assert_bool (RegExp.multiline re) (String.contains flags_str 'm');
-  assert_bool (RegExp.dotall re) (String.contains flags_str 's');
-  assert_bool (RegExp.sticky re) (String.contains flags_str 'y')
+  assert_bool (RegExp.global re) (Stdlib.String.contains flags_str 'g');
+  assert_bool (RegExp.ignorecase re) (Stdlib.String.contains flags_str 'i');
+  assert_bool (RegExp.multiline re) (Stdlib.String.contains flags_str 'm');
+  assert_bool (RegExp.dotall re) (Stdlib.String.contains flags_str 's');
+  assert_bool (RegExp.sticky re) (Stdlib.String.contains flags_str 'y')
 
 let tests =
   [

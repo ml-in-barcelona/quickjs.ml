@@ -7,7 +7,7 @@
 
 (test
  (name test262)
- (libraries alcotest quickjs alcotest_extra)
+ (libraries alcotest quickjs alcotest_extra integers)
  (modules :standard \ alcotest_extra)
  (flags
   (:standard -open Alcotest_extra))

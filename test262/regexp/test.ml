@@ -253,6 +253,57 @@ let repetition_bounds () =
   assert_bool (RegExp.test re "aaaa") true;
   assert_bool (RegExp.test re "aaaaa") true (* greedy, matches first 4 *)
 
+(* ===================================================================
+   Sticky vs Global flag comparison
+   =================================================================== *)
+
+let sticky_vs_global () =
+  let input = "abc xyz abc" in
+  let sticky = regexp_compile "abc" ~flags:"y" in
+  let global = regexp_compile "abc" ~flags:"g" in
+  (* Global finds matches anywhere in the string *)
+  assert_bool (RegExp.test global input) true;
+  assert_bool (RegExp.test global input) true;
+  (* Sticky only matches at lastIndex position *)
+  assert_bool (RegExp.test sticky input) true;
+  (* After first match at 0, lastIndex is 3, "xyz" is at 3, so no match *)
+  assert_bool (RegExp.test sticky input) false
+
+(* ===================================================================
+   Unicode property escapes
+   =================================================================== *)
+
+let unicode_ascii_class_no_unicode () =
+  (* [a-z] does NOT match unicode letters without u flag *)
+  let re = regexp_compile "^[a-z]+$" ~flags:"i" in
+  (* ASCII works *)
+  assert_bool (RegExp.test re "car") true;
+  (* Unicode letters don't match [a-z] *)
+  assert_bool (RegExp.test re "pão") false;
+  assert_bool (RegExp.test re "知道") false;
+  assert_bool (RegExp.test re "يعرف") false
+
+let unicode_property_escape () =
+  (* \p{L} matches unicode letters with u flag *)
+  let re = regexp_compile "^\\p{L}+$" ~flags:"u" in
+  (* ASCII works *)
+  assert_bool (RegExp.test re "car") true;
+  (* Unicode letters match with \p{L} and u flag *)
+  assert_bool (RegExp.test re "pão") true;
+  assert_bool (RegExp.test re "知道") true;
+  assert_bool (RegExp.test re "يعرف") true
+
+(* ===================================================================
+   Complex pattern tests
+   =================================================================== *)
+
+let http_url_pattern () =
+  let pattern = "^[https?]+:\\/\\/((w{3}\\.)?[\\w+]+)\\.[\\w+]+$" in
+  let re = regexp_compile pattern ~flags:"" in
+  assert_bool (RegExp.test re "https://www.example.com") true;
+  assert_bool (RegExp.test re "http://example.com") true;
+  assert_bool (RegExp.test re "https://example") false
+
 let tests =
   [
     (* A1: Basic functionality *)
@@ -278,6 +329,7 @@ let tests =
     test "flag_s: dotall" flag_s;
     test "flag_y: sticky" flag_y;
     test "flag_y_lastindex: sticky with lastIndex" flag_y_lastindex;
+    test "sticky_vs_global: sticky vs global behavior" sticky_vs_global;
     (* Edge cases *)
     test "special_chars: regex metacharacters" special_chars;
     test "unicode_basic: unicode matching" unicode_basic;
@@ -286,4 +338,9 @@ let tests =
     test "lookbehind: positive and negative" lookbehind;
     test "backreference: backreference" backreference;
     test "repetition_bounds: bounded repetition" repetition_bounds;
+    (* Unicode *)
+    test "unicode_ascii_class: [a-z] vs unicode" unicode_ascii_class_no_unicode;
+    test "unicode_property_escape: \\p{L} matches letters" unicode_property_escape;
+    (* Complex patterns *)
+    test "http_url_pattern: URL matching" http_url_pattern;
   ]

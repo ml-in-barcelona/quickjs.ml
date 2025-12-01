@@ -316,6 +316,40 @@ let a4_t6 () =
     [| "123-test-456"; "123"; "test"; "456" |];
   assert_string (Option.get (RegExp.group "name" result)) "test"
 
+let a4_t7 () =
+  (* Named groups with global flag - iterates correctly *)
+  let re = regexp_compile "(?<word>\\w+)" ~flags:"g" in
+  let input = "hello world" in
+  let result = RegExp.exec re input in
+  assert_string (Option.get (RegExp.group "word" result)) "hello";
+  let result = RegExp.exec re input in
+  assert_string (Option.get (RegExp.group "word" result)) "world"
+
+let a4_t8 () =
+  (* Mixed named and unnamed - only named in groups list *)
+  let re = regexp_compile "(\\d+)-(?<name>\\w+)-(\\d+)" ~flags:"" in
+  let result = RegExp.exec re "123-test-456" in
+  assert_string (Option.get (RegExp.group "name" result)) "test";
+  let groups = RegExp.groups result in
+  assert_int (List.length groups) 1
+
+let a4_t9 () =
+  (* No named groups returns empty groups list *)
+  let re = regexp_compile "(\\d+)" ~flags:"" in
+  let result = RegExp.exec re "123" in
+  assert_array (RegExp.captures result) [| "123"; "123" |];
+  let groups = RegExp.groups result in
+  assert_int (List.length groups) 0
+
+let a4_t10 () =
+  (* No match returns empty groups *)
+  let re = regexp_compile "(?<num>\\d+)" ~flags:"" in
+  let result = RegExp.exec re "no numbers here" in
+  assert_array (RegExp.captures result) [||];
+  let groups = RegExp.groups result in
+  assert_int (List.length groups) 0;
+  assert_bool (Option.is_none (RegExp.group "num" result)) true
+
 (* ===================================================================
    S15.10.6.2_A5: Various patterns
    =================================================================== *)
@@ -421,6 +455,39 @@ let edge_dotall () =
   let result = RegExp.exec re "a\nb" in
   assert_array (RegExp.captures result) [| "a\nb" |]
 
+(* ===================================================================
+   Lookbehind tests from tc39/test262
+   Based on: https://github.com/tc39/test262/tree/main/test/built-ins/RegExp/lookBehind
+   =================================================================== *)
+
+let lookbehind_word_boundary () =
+  (* https://github.com/tc39/test262/blob/main/test/built-ins/RegExp/lookBehind/word-boundary.js *)
+  let re = regexp_compile "(?<=\\b)[d-f]{3}" ~flags:"" in
+  let result = RegExp.exec re "def" in
+  assert_array (RegExp.captures result) [| "def" |]
+
+let lookbehind_negative () =
+  (* https://github.com/tc39/test262/blob/main/test/built-ins/RegExp/lookBehind/negative.js *)
+  let re = regexp_compile "(?<!abc)\\w\\w\\w" ~flags:"" in
+  let result = RegExp.exec re "abcdef" in
+  (* Matches "abc" at position 0 because "abc" is NOT preceded by "abc" *)
+  assert_array (RegExp.captures result) [| "abc" |]
+
+let lastindex_and_index () =
+  (* lastIndex and index interaction with global flag *)
+  let re = regexp_compile "hello" ~flags:"g" in
+  let input = "hello world hello" in
+  let result = RegExp.exec re input in
+  assert_int (RegExp.index result) 0;
+  assert_int (RegExp.lastIndex re) 5;
+  let result = RegExp.exec re input in
+  assert_int (RegExp.index result) 12;
+  assert_int (RegExp.lastIndex re) 17;
+  (* No more matches - resets lastIndex *)
+  let result = RegExp.exec re input in
+  assert_int (RegExp.index result) 0;
+  assert_int (RegExp.lastIndex re) 0
+
 let tests =
   [
     (* A1: Basic exec *)
@@ -460,6 +527,10 @@ let tests =
     test "S15.10.6.2_A4_T4: nonexistent group" a4_t4;
     test "S15.10.6.2_A4_T5: unmatched named group" a4_t5;
     test "S15.10.6.2_A4_T6: mixed groups" a4_t6;
+    test "S15.10.6.2_A4_T7: named groups with global" a4_t7;
+    test "S15.10.6.2_A4_T8: mixed groups count" a4_t8;
+    test "S15.10.6.2_A4_T9: no named groups" a4_t9;
+    test "S15.10.6.2_A4_T10: no match empty groups" a4_t10;
     (* A5: Various patterns *)
     test "S15.10.6.2_A5_T1: start anchor" a5_t1;
     test "S15.10.6.2_A5_T2: end anchor" a5_t2;
@@ -475,4 +546,8 @@ let tests =
     test "edge: alternation" edge_alternation;
     test "edge: word boundary" edge_word_boundary;
     test "edge: dotall" edge_dotall;
+    (* Lookbehind tests from tc39/test262 *)
+    test "lookbehind: word boundary" lookbehind_word_boundary;
+    test "lookbehind: negative" lookbehind_negative;
+    test "lastIndex: index interaction" lastindex_and_index;
   ]

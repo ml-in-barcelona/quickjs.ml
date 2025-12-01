@@ -65,6 +65,12 @@ let assert_negative_zero value =
 let assert_array left right =
   Alcotest.(check (array string)) "should be equal" right left
 
+let assert_float_opt left right =
+  Alcotest.(check (option (float 0.0))) "should be equal" right left
+
+let assert_uchar left right =
+  Alcotest.(check bool) "should be equal uchar" true (left = right)
+
 (* ===== RegExp helpers ===== *)
 
 let regexp_compile re ~flags =
@@ -122,14 +128,14 @@ let assert_malformed_unicode error =
            (RegExp.compile_error_to_string other))
 
 let string_contains ~needle haystack =
-  let needle_len = String.length needle in
-  let haystack_len = String.length haystack in
+  let needle_len = Stdlib.String.length needle in
+  let haystack_len = Stdlib.String.length haystack in
   if needle_len = 0 then true
   else if needle_len > haystack_len then false
   else
     let rec check i =
       if i + needle_len > haystack_len then false
-      else if String.sub haystack i needle_len = needle then true
+      else if Stdlib.String.sub haystack i needle_len = needle then true
       else check (i + 1)
     in
     check 0
@@ -138,7 +144,7 @@ let assert_unknown_error ~contains error =
   match error with
   | `Unknown msg ->
       if
-        String.length contains > 0 && not (string_contains ~needle:contains msg)
+        Stdlib.String.length contains > 0 && not (string_contains ~needle:contains msg)
       then
         Alcotest.fail
           (Printf.sprintf "Expected unknown error containing '%s' but got '%s'"

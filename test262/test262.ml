@@ -14,4 +14,16 @@ let () =
       ("RegExp.prototype.exec", Regexp.Exec.tests);
       ("RegExp.flags", Regexp.Flags.tests);
       ("RegExp.source", Regexp.Source.tests);
+      (* Number tests *)
+      ("Number.prototype.toString", Number.Prototype.To_string.tests);
+      ("Number.prototype.toFixed", Number.Prototype.To_fixed.tests);
+      ("Number.prototype.toPrecision", Number.Prototype.To_precision.tests);
+      ("Number.prototype.toExponential", Number.Prototype.To_exponential.tests);
+      (* parseFloat tests *)
+      ("parseFloat", Parse_float.Parse.tests);
+      (* String tests *)
+      ("String.prototype.toLowerCase", String.Prototype.To_lower_case.tests);
+      ("String.prototype.toUpperCase", String.Prototype.To_upper_case.tests);
+      ("String.prototype.normalize", String.Prototype.Normalize.tests);
+      ("Unicode.properties", String.Unicode_properties.tests);
     ]

@@ -92,7 +92,7 @@ let case_conv_string conv_type s =
   let cps = utf8_to_codepoints s in
   let res = Ctypes.CArray.make Ctypes.uint32_t lre_cc_res_len_max in
   let res_ptr = Ctypes.CArray.start res in
-  let result = Buffer.create (String.length s * 2) in
+  let result = Buffer.create (Stdlib.String.length s * 2) in
   let encoder = Uutf.encoder `UTF_8 (`Buffer result) in
   Array.iter
     (fun cp_int ->

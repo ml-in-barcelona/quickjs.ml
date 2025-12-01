@@ -218,6 +218,25 @@ let edge_anchors () =
   let re = regexp_compile "^^$$" ~flags:"" in
   assert_string (RegExp.source re) "^^$$"
 
+(* ===================================================================
+   Patterns that error in some engines but are valid in JavaScript
+   =================================================================== *)
+
+let js_valid_empty_quantifier () =
+  (* a{,} is valid in JavaScript - matches literal "a{,}" *)
+  let re = regexp_compile "a{,}" ~flags:"" in
+  assert_string (RegExp.source re) "a{,}"
+
+let js_valid_forward_backreference () =
+  (* Forward backreference before group is valid in JS *)
+  let re = regexp_compile "\\1(a)" ~flags:"" in
+  assert_string (RegExp.source re) "\\1(a)"
+
+let js_valid_bracket_in_class () =
+  (* Unescaped [ in character class is valid in JS *)
+  let re = regexp_compile "[a-z[]" ~flags:"" in
+  assert_string (RegExp.source re) "[a-z[]"
+
 let tests =
   [
     (* Successful compilation *)
@@ -247,4 +266,8 @@ let tests =
     test "edge: named groups" edge_named_groups;
     test "edge: word boundaries" edge_word_boundaries;
     test "edge: anchors" edge_anchors;
+    (* JS-valid patterns that error in other engines *)
+    test "js_valid: empty quantifier a{,}" js_valid_empty_quantifier;
+    test "js_valid: forward backreference" js_valid_forward_backreference;
+    test "js_valid: bracket in class" js_valid_bracket_in_class;
   ]

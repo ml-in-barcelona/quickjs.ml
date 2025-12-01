@@ -65,7 +65,7 @@ let parse_flags flags =
     | 'y' :: rest -> parse_flags' rest (acc lor lre_flag_sticky)
     | _ :: rest -> parse_flags' rest acc
   in
-  parse_flags' (String.to_seq flags |> List.of_seq) 0
+  parse_flags' (Stdlib.String.to_seq flags |> List.of_seq) 0
 
 let flags_to_string flags =
   let rec flags_to_string' flags acc =
@@ -97,11 +97,11 @@ let strlen ptr =
 (* Check if a string contains non-ASCII bytes that require Unicode mode in libregexp.
    Any byte >= 0x80 indicates multi-byte UTF-8 which needs Unicode mode for proper matching. *)
 let needs_unicode_mode s =
-  let len = String.length s in
+  let len = Stdlib.String.length s in
   let rec check i =
     if i >= len then false
     else
-      let byte = Char.code s.[i] in
+      let byte = Char.code (Stdlib.String.get s i) in
       if byte >= 0x80 then true else check (i + 1)
   in
   check 0
@@ -111,7 +111,7 @@ let compile ~flags re =
   let size_of_error_msg = 64 in
   let error_msg = Ctypes.allocate_n ~count:size_of_error_msg Ctypes.char in
   let input = Ctypes.ocaml_string_start re in
-  let input_length = String.length re |> Unsigned.Size_t.of_int in
+  let input_length = Stdlib.String.length re |> Unsigned.Size_t.of_int in
   let parsed_flags = parse_flags flags in
   (* Auto-enable Unicode mode for patterns containing 4-byte UTF-8 sequences
      (code points >= U+10000, like emojis). libregexp requires this. *)
@@ -159,7 +159,7 @@ let flags regexp = flags_to_string regexp.flags
 (* Convert UTF-8 string to UTF-16 code units (as uint8_t pairs, little-endian) *)
 let utf8_to_utf16_bytes s =
   let decoder = Uutf.decoder ~encoding:`UTF_8 (`String s) in
-  let buf = Buffer.create (String.length s * 2) in
+  let buf = Buffer.create (Stdlib.String.length s * 2) in
   let add_u16 code =
     Buffer.add_char buf (Char.chr (code land 0xFF));
     Buffer.add_char buf (Char.chr ((code lsr 8) land 0xFF))
@@ -263,10 +263,10 @@ let exec regexp input =
     if use_unicode then
       (* Convert UTF-8 input to UTF-16 for proper Unicode matching *)
       let utf16_str = utf8_to_utf16_bytes input in
-      let utf16_len = String.length utf16_str in
+      let utf16_len = Stdlib.String.length utf16_str in
       let bytes_list =
         List.init utf16_len (fun i ->
-            Unsigned.UInt8.of_int (Char.code utf16_str.[i]))
+            Unsigned.UInt8.of_int (Char.code (Stdlib.String.get utf16_str i)))
       in
       let bufp = Ctypes.CArray.of_list Ctypes.uint8_t bytes_list in
       let map = build_utf16_to_utf8_map input in
@@ -274,11 +274,11 @@ let exec regexp input =
     else
       (* ASCII-only: use bytes directly *)
       let bytes_list =
-        List.init (String.length input) (fun i ->
-            Unsigned.UInt8.of_int (Char.code input.[i]))
+        List.init (Stdlib.String.length input) (fun i ->
+            Unsigned.UInt8.of_int (Char.code (Stdlib.String.get input i)))
       in
       let bufp = Ctypes.CArray.of_list Ctypes.uint8_t bytes_list in
-      (bufp, String.length input, 0, None)
+      (bufp, Stdlib.String.length input, 0, None)
   in
   let buffer = Ctypes.CArray.start bufp in
 
@@ -340,7 +340,7 @@ let exec regexp input =
           (* Only set index on first capture (the full match) *)
           if !i = 0 then index := start_index;
           let substring =
-            match String.sub input start_index length with
+            match Stdlib.String.sub input start_index length with
             | sub -> sub
             | exception _ -> ""
           in

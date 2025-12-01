@@ -34,18 +34,24 @@ Unicode.lowercase "ÉCOLE"             (* "école" *)
 Unicode.normalize NFC "cafe\u{0301}"  (* Some "café" - composed form *)
 Unicode.is_id_start (Uchar.of_char 'a')  (* true - valid JS identifier start *)
 
-(* Dtoa - double to string (JavaScript-identical number formatting) *)
-Dtoa.to_string 0.1                (* "0.1" - no floating point artifacts *)
-Dtoa.to_fixed 2 3.14159           (* "3.14" *)
-Dtoa.to_radix 16 255.0            (* "ff" *)
+(* Number.Prototype - JavaScript-identical number formatting *)
+Number.Prototype.to_string 0.1        (* "0.1" - no floating point artifacts *)
+Number.Prototype.to_fixed 2 3.14159   (* "3.14" *)
+Number.Prototype.to_radix 16 255.0    (* "ff" *)
+Number.Prototype.to_exponential 2 123.456  (* "1.23e+2" *)
 
-(* Atod - string to double (JavaScript-compatible parsing) *)
-Atod.parse "3.14"                 (* Some 3.14 *)
-Atod.parse ~options:Atod.js_options "0xff"  (* Some 255.0 *)
+(* Global - JavaScript global functions *)
+Global.parse_float "3.14"             (* Some 3.14 *)
+Global.parse_float ~options:Global.js_parse_options "0xff"  (* Some 255.0 *)
 
-(* Itoa - fast integer to string *)
-Itoa.of_int 42                    (* "42" *)
-Itoa.of_int_radix ~radix:16 255   (* "ff" *)
+(* Number - fast integer to string *)
+Number.of_int 42                      (* "42" *)
+Number.of_int_radix ~radix:16 255     (* "ff" *)
+Number.of_int64 9223372036854775807L  (* "9223372036854775807" *)
+
+(* String.Prototype - JavaScript string methods *)
+String.Prototype.to_lower_case "HELLO"  (* "hello" *)
+String.Prototype.to_upper_case "world"  (* "WORLD" *)
 ```
 
 ### Documentation
