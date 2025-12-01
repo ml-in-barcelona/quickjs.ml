@@ -1,9 +1,9 @@
 # Changes
 
-## Unreleased
+## 0.3.0
 
 - Fix openSUSE
-- **Breaking:** Reorganized API to mirror JavaScript built-in objects:
+- **Breaking:** Reorganized API to mirror JavaScript built-in objects for `quickjs`
   - `Dtoa` → `Number.Prototype` (toString, toFixed, toPrecision, toExponential, toRadix)
   - `Atod` → `Global` (parse_float, parse_float_partial)
   - `IntToString` → `Number` (of_int, of_int32, of_int64, of_int_radix, etc.)
