@@ -121,7 +121,6 @@ let canonicalize ?(unicode = true) c =
   if result >= 0 && result <= 0x10FFFF then Uchar.of_int result else c
 
 (* Normalization *)
-
 let normalize form s =
   let cps = utf8_to_codepoints s in
   let len = Array.length cps in

@@ -340,7 +340,8 @@ let tests =
     test "repetition_bounds: bounded repetition" repetition_bounds;
     (* Unicode *)
     test "unicode_ascii_class: [a-z] vs unicode" unicode_ascii_class_no_unicode;
-    test "unicode_property_escape: \\p{L} matches letters" unicode_property_escape;
+    test "unicode_property_escape: \\p{L} matches letters"
+      unicode_property_escape;
     (* Complex patterns *)
     test "http_url_pattern: URL matching" http_url_pattern;
   ]
