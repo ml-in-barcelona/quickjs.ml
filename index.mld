@@ -24,26 +24,26 @@ open Quickjs
 (* RegExp - JavaScript-compatible regular expressions *)
 let re = RegExp.compile ~flags:"g" "(?<word>\\w+)" |> Result.get_ok in
 let result = RegExp.exec re "hello world" in
-RegExp.captures result        (* [| "hello"; "hello" |] *)
-RegExp.group "word" result    (* Some "hello" *)
-RegExp.exec re "hello world"  (* next match: "world" *)
+RegExp.captures result (* [| "hello"; "hello" |] *)
+RegExp.group "word" result (* Some "hello" *)
+RegExp.exec re "hello world" (* next match: "world" *)
 
 (* Number.Prototype - JavaScript-identical number formatting *)
-Number.Prototype.to_string 0.1        (* "0.1" - no floating point artifacts *)
-Number.Prototype.to_fixed 2 3.14159   (* "3.14" *)
-Number.Prototype.to_radix 16 255.0    (* "ff" *)
-Number.Prototype.to_exponential 2 123.456  (* "1.23e+2" *)
+Number.Prototype.to_string 0.1 (* "0.1" - no floating point artifacts *)
+Number.Prototype.to_fixed 2 3.14159 (* "3.14" *)
+Number.Prototype.to_radix 16 255.0 (* "ff" *)
+Number.Prototype.to_exponential 2 123.456 (* "1.23e+2" *)
 
 (* Global - JavaScript global functions *)
-Global.parse_float "3.14"             (* Some 3.14 *)
-Global.parse_float ~options:Global.js_parse_options "0xff"  (* Some 255.0 *)
+Global.parse_float "3.14" (* Some 3.14 *)
+Global.parse_float ~options:Global.js_parse_options "0xff" (* Some 255.0 *)
 
 (* Number - fast integer to string *)
-Number.of_int 42                      (* "42" *)
-Number.of_int_radix ~radix:16 255     (* "ff" *)
-Number.of_int64 9223372036854775807L  (* "9223372036854775807" *)
+Number.of_int 42 (* "42" *)
+Number.of_int_radix ~radix:16 255 (* "ff" *)
+Number.of_int64 9223372036854775807L (* "9223372036854775807" *)
 
 (* String.Prototype - JavaScript string methods *)
-String.Prototype.to_lower_case "HELLO"  (* "hello" *)
-String.Prototype.to_upper_case "world"  (* "WORLD" *)
+String.Prototype.to_lower_case "HELLO" (* "hello" *)
+String.Prototype.to_upper_case "world" (* "WORLD" *)
 ]}
