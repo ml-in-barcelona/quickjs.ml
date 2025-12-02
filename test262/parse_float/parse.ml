@@ -27,10 +27,6 @@ let exponential () =
   assert_float_opt (Global.parse_float "1e10") (Some 1e10);
   assert_float_opt (Global.parse_float "1.5e-3") (Some 0.0015)
 
-(* Incomplete exponents should return the number before the 'e'.
-   JavaScript spec: parseFloat("1e") === 1, parseFloat("1e+") === 1.
-   This is a workaround for QuickJS bug:
-   https://github.com/quickjs-ng/quickjs/issues/1259 *)
 let incomplete_exponents () =
   assert_float_opt (Global.parse_float "1e") (Some 1.0);
   assert_float_opt (Global.parse_float "1e+") (Some 1.0);
