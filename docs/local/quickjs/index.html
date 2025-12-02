@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>quickjs (docs.local.quickjs)</title><meta charset="utf-8"/><link rel="stylesheet" href="../../odoc.support/odoc.css"/><meta name="generator" content="odoc 3.1.0"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><script src="../../odoc.support/highlight.pack.js"></script><script>hljs.initHighlightingOnLoad();</script></head><body class="odoc"><nav class="odoc-nav"><a href="../index.html">Up</a> – <a href="../../../index.html">Index</a> &#x00BB; <a href="../../index.html">docs</a> &#x00BB; <a href="../index.html">local</a> &#x00BB; quickjs</nav><header class="odoc-preamble"><h2 id="quickjs"><a href="#quickjs" class="anchor"></a>quickjs</h2><p><code>quickjs.ml</code> is a set of OCaml bindings to some libraries from <a href="https://bellard.org/quickjs">QuickJS</a>, a small and embeddable JavaScript engine that implements the ES2020 specification including modules, asynchronous generators, proxies and BigInt.</p><p>This project exposes two libraries:</p><ul><li><a href="c/index.html" title="c">quickjs.c</a>: Low-level OCaml bindings to QuickJS C functions (<a href="c/Libregexp/index.html" title="Libregexp">Libregexp</a>, <a href="c/Libunicode/index.html" title="Libunicode">Libunicode</a>, <a href="c/Dtoa/index.html" title="Dtoa">Dtoa</a>, <a href="c/Atod/index.html" title="Atod">Atod</a>, and <a href="c/Cutils/index.html" title="Cutils">Cutils</a>)</li></ul><ul><li><a href="Quickjs/index.html" title="Quickjs">quickjs</a>: A high-level API that mirrors JavaScript's built-in objects and methods. Modules include <a href="Quickjs/RegExp/index.html" title="Quickjs.RegExp">RegExp</a>, <a href="Quickjs/String/index.html" title="Quickjs.String">String</a>, <a href="Quickjs/Number/index.html" title="Quickjs.Number">Number</a>, and <a href="Quickjs/Global/index.html" title="Quickjs.Global">Global</a>.</li></ul></header><div class="odoc-tocs"><nav class="odoc-toc odoc-local-toc"><ul><li><a href="#motivation">Motivation</a></li><li><a href="#test262-compatibility">Test262 Compatibility</a></li><li><a href="#usage">Usage</a></li></ul></nav></div><div class="odoc-content"><h3 id="motivation"><a href="#motivation" class="anchor"></a>Motivation</h3><p>The purpose of this project is to provide the same behaviour as the JavaScript engines from browsers (<a href="https://spidermonkey.dev">SpiderMonkey</a>, <a href="https://developer.apple.com/documentation/javascriptcore">JavaScriptCore</a>, <a href="https://github.com/chakra-core/ChakraCore">ChakraCore</a>, <a href="https://v8.dev/">v8</a>) into native OCaml. So code that runs in the browser (via <a href="https://melange.re">Melange</a>) can be run in native with the same results.</p><h3 id="test262-compatibility"><a href="#test262-compatibility" class="anchor"></a>Test262 Compatibility</h3><p>We are translating <a href="https://github.com/tc39/test262">TC39/test262</a> tests into OCaml to ensure full compatibility with the ECMAScript specification. This allows us to verify that our implementations behave exactly as expected by the JavaScript standard, guaranteeing consistent behaviour between browser engines and native OCaml.</p><h3 id="usage"><a href="#usage" class="anchor"></a>Usage</h3><pre class="language-ocaml"><code>open Quickjs
+
+(* RegExp - JavaScript-compatible regular expressions *)
+let re = RegExp.compile ~flags:&quot;g&quot; &quot;(?&lt;word&gt;\\w+)&quot; |&gt; Result.get_ok in
+let result = RegExp.exec re &quot;hello world&quot; in
+RegExp.captures result (* [| &quot;hello&quot;; &quot;hello&quot; |] *)
+RegExp.group &quot;word&quot; result (* Some &quot;hello&quot; *)
+RegExp.exec re &quot;hello world&quot; (* next match: &quot;world&quot; *)
+
+(* Number.Prototype - JavaScript-identical number formatting *)
+Number.Prototype.to_string 0.1 (* &quot;0.1&quot; - no floating point artifacts *)
+Number.Prototype.to_fixed 2 3.14159 (* &quot;3.14&quot; *)
+Number.Prototype.to_radix 16 255.0 (* &quot;ff&quot; *)
+Number.Prototype.to_exponential 2 123.456 (* &quot;1.23e+2&quot; *)
+
+(* Global - JavaScript global functions *)
+Global.parse_float &quot;3.14&quot; (* Some 3.14 *)
+Global.parse_float ~options:Global.js_parse_options &quot;0xff&quot; (* Some 255.0 *)
+
+(* Number - fast integer to string *)
+Number.of_int 42 (* &quot;42&quot; *)
+Number.of_int_radix ~radix:16 255 (* &quot;ff&quot; *)
+Number.of_int64 9223372036854775807L (* &quot;9223372036854775807&quot; *)
+
+(* String.Prototype - JavaScript string methods *)
+String.Prototype.to_lower_case &quot;HELLO&quot; (* &quot;hello&quot; *)
+String.Prototype.to_upper_case &quot;world&quot; (* &quot;WORLD&quot; *)</code></pre></div></body></html>
