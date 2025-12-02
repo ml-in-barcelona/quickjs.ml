@@ -2,14 +2,15 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include "cutils.h"
 #include "libunicode.h"
 #include "libregexp.h"
 #include "dtoa.h"
 
-int lre_check_stack_overflow(void *opaque, size_t alloca_size)
+bool lre_check_stack_overflow(void *opaque, size_t alloca_size)
 {
-    return 0;
+    return false;
 }
 
 void *lre_realloc(void *opaque, void *ptr, size_t size)

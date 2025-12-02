@@ -90,10 +90,10 @@ module Functions (F : Ctypes.FOREIGN) = struct
     F.foreign "lre_is_id_continue"
       (Ctypes.uint32_t @-> F.returning Ctypes.int)
 
-  (** Check if non-ASCII character is whitespace (for codepoints >= 256) *)
-  let lre_is_space_non_ascii =
-    F.foreign "lre_is_space_non_ascii"
-      (Ctypes.uint32_t @-> F.returning Ctypes.int)
+  (** Check if character is whitespace (works for all codepoints) *)
+  let lre_is_space =
+    F.foreign "lre_is_space"
+      (Ctypes.int @-> F.returning Ctypes.bool)
 
   (* --- Case Conversion --- *)
 
