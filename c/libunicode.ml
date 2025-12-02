@@ -17,8 +17,8 @@ let is_id_start cp = Bindings.C.Functions.lre_is_id_start cp
 (** Check if character can continue an identifier (ID_Continue) *)
 let is_id_continue cp = Bindings.C.Functions.lre_is_id_continue cp
 
-(** Check if non-ASCII character is whitespace (for codepoints >= 256) *)
-let is_space_non_ascii cp = Bindings.C.Functions.lre_is_space_non_ascii cp
+(** Check if character is whitespace (works for all codepoints) *)
+let is_space cp = Bindings.C.Functions.lre_is_space cp
 
 (** {2 Case Conversion} *)
 

@@ -60,14 +60,8 @@ let is_id_continue c =
   Libunicode.is_id_continue cp <> 0
 
 let is_whitespace c =
-  let code = Uchar.to_int c in
-  if code < 256 then
-    (* ASCII whitespace: space, tab, newline, etc. *)
-    code = 0x20 || code = 0x09 || code = 0x0A || code = 0x0B || code = 0x0C
-    || code = 0x0D
-  else
-    let cp = Unsigned.UInt32.of_int code in
-    Libunicode.is_space_non_ascii cp <> 0
+  (* lre_is_space handles both ASCII and non-ASCII whitespace *)
+  Libunicode.is_space (Uchar.to_int c)
 
 (* Case Conversion - Single Character *)
 
