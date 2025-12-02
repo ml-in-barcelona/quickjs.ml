@@ -1,6 +1,6 @@
 # quickjs
 
-**quickjs.ml** is a set of OCaml bindings to some libraries from [QuickJS](https://bellard.org/quickjs) a small and embeddable JavaScript engine, where implements the ES2020 specification including modules, asynchronous generators, proxies and BigInt.
+**quickjs.ml** is a set of OCaml bindings to some libraries from [QuickJS](https://quickjs-ng.github.io/quickjs/), a small and embeddable JavaScript engine that aims to support the latest ECMAScript specification.
 
 This project exposes two libraries:
 
