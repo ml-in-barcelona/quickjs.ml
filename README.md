@@ -4,23 +4,30 @@
 
 This project exposes two libraries:
 
-- **`quickjs.c`**: Low-level OCaml bindings to QuickJS C functions (`libregexp`, `libunicode`, `js_dtoa`, `js_atod`, and `cutils`)
+- **[`quickjs.c`](https://ml-in-barcelona.github.io/quickjs.ml/docs/local/quickjs/c/index.html)**: Low-level OCaml bindings to QuickJS C libs (`libregexp`, `libunicode`, `js_dtoa`, `js_atod`, and `cutils`)
 
-- **`quickjs`**: A high-level API that mirrors JavaScript's built-in objects and methods. Modules include `RegExp`, `String`, `Number`, and `Global`.
+- **[`quickjs`](https://ml-in-barcelona.github.io/quickjs.ml/docs/local/quickjs/Quickjs/index.html)**: A high-level API that mirrors JavaScript's built-in objects and methods. Modules include `RegExp`, `String`, `Number`, and `Global`.
 
 ### Motivation
 
-The purpose of this project is to provide the same behaviour as the JavaScript engines from browsers ([SpiderMonkey](https://spidermonkey.dev), [JavaScriptCore](https://developer.apple.com/documentation/javascriptcore), [ChakraCore](https://github.com/chakra-core/ChakraCore), [v8](https://v8.dev/)) into native OCaml. So code that runs in the browser (via [Melange](https://melange.re)) can be run in native with the same results.
+OCaml can target both native code and JavaScript (via [Melange](https://melange.re)), enabling "universal" code that runs on both platforms. However, JavaScript's specific behavior (such as Unicode, number formatting, and regular expressions) often differs between native OCaml and browser engines. Rather than reimplementing these complex behaviors from scratch, we leverage QuickJS.
 
-### TC39/test262 Compatibility
+This project bridges that gap by bringing the same behavior as JavaScript engines ([SpiderMonkey](https://spidermonkey.dev), [JavaScriptCore](https://developer.apple.com/documentation/javascriptcore), [ChakraCore](https://github.com/chakra-core/ChakraCore), [v8](https://v8.dev)) into native OCaml. With `quickjs.ml`, universal code produces identical results whether it runs natively or in the browser.
 
-We are translating [TC39/test262](https://github.com/tc39/test262) tests into OCaml to ensure full compatibility with the ECMAScript specification. This allows us to verify that our implementations behave exactly as expected by the JavaScript standard, guaranteeing consistent behaviour between browser engines and native OCaml.
+#### TC39/test262 Compatibility
+
+We are translating [TC39/test262](https://github.com/tc39/test262) tests into OCaml to ensure full compatibility with the ECMAScript specification.
 
 ### Documentation
 
 [API reference](https://ml-in-barcelona.github.io/quickjs.ml/docs/local/quickjs/index.html)
 
 ### Usage
+
+Add `quickjs` library in dune
+```clojure
+(libraries quickjs)
+```
 
 ```ocaml
 open Quickjs
@@ -51,3 +58,5 @@ Number.of_int64 9223372036854775807L (* "9223372036854775807" *)
 String.Prototype.to_lower_case "HELLO" (* "hello" *)
 String.Prototype.to_upper_case "world" (* "WORLD" *)
 ```
+
+For more details, see the [API reference](https://ml-in-barcelona.github.io/quickjs.ml/docs/local/quickjs/index.html).
