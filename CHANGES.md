@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Fix arm32v7 tests on 32-bits
+- Fix `Global.parse_float` for incomplete exponents ("1e", "1e+", "1e-") to return the parsed number instead of `None`, matching JavaScript spec. Workaround for [quickjs-ng/quickjs#1259](https://github.com/quickjs-ng/quickjs/issues/1259)
 
 ## 0.3.0
 

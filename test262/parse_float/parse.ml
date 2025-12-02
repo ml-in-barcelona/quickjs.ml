@@ -27,6 +27,22 @@ let exponential () =
   assert_float_opt (Global.parse_float "1e10") (Some 1e10);
   assert_float_opt (Global.parse_float "1.5e-3") (Some 0.0015)
 
+(* Incomplete exponents should return the number before the 'e'.
+   JavaScript spec: parseFloat("1e") === 1, parseFloat("1e+") === 1.
+   This is a workaround for QuickJS bug:
+   https://github.com/quickjs-ng/quickjs/issues/1259 *)
+let incomplete_exponents () =
+  assert_float_opt (Global.parse_float "1e") (Some 1.0);
+  assert_float_opt (Global.parse_float "1e+") (Some 1.0);
+  assert_float_opt (Global.parse_float "1e-") (Some 1.0);
+  assert_float_opt (Global.parse_float "1E") (Some 1.0);
+  assert_float_opt (Global.parse_float "1E+") (Some 1.0);
+  assert_float_opt (Global.parse_float "1E-") (Some 1.0);
+  assert_float_opt (Global.parse_float "42e") (Some 42.0);
+  assert_float_opt (Global.parse_float "3.14e") (Some 3.14);
+  assert_float_opt (Global.parse_float "3.14e+") (Some 3.14);
+  assert_float_opt (Global.parse_float "3.14e-") (Some 3.14)
+
 let special_values () =
   assert_float_opt (Global.parse_float "Infinity") (Some Float.infinity);
   assert_float_opt (Global.parse_float "-Infinity") (Some Float.neg_infinity)
@@ -90,6 +106,7 @@ let tests =
     test "S15.1.2.3_A5: invalid strings" invalid_strings;
     test "S15.1.2.3_A6: no leading whitespace" no_leading_whitespace;
     test "S15.1.2.3_A7: trailing non-numeric" trailing_non_numeric;
+    test "S15.1.2.3_A8: incomplete exponents" incomplete_exponents;
     test "js_options: hex parsing" hex_with_js_options;
     test "js_options: underscores" underscores;
     (* parse_float_partial tests *)
