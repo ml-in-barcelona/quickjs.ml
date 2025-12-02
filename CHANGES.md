@@ -1,8 +1,11 @@
 # Changes
 
-## 0.3.0
+## Unreleased
 
 - Fix arm32v7 tests on 32-bits
+
+## 0.3.0
+
 - Fix openSUSE
 - **Breaking:** Reorganized API to mirror JavaScript built-in objects for `quickjs`
   - `Dtoa` → `Number.Prototype` (toString, toFixed, toPrecision, toExponential, toRadix)

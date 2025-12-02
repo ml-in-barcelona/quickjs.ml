@@ -121,13 +121,15 @@ let large_numbers () =
   (* Test with max values that fit in OCaml's int type.
      On 64-bit: int is 63 bits, max = 4611686018427387903
      On 32-bit: int is 31 bits, max = 1073741823
-     We use Sys.int_size to pick appropriate test values. *)
+
+     Note: We use int_of_string for large values because OCaml validates
+     integer literals at compile time. Even inside a conditional, the
+     compiler would reject literals that exceed the platform's int size. *)
   if Sys.int_size >= 63 then begin
     (* 64-bit platform: can test with JS MAX_SAFE_INTEGER *)
-    assert_int_opt (Global.parse_int "9007199254740991") (Some 9007199254740991);
-    assert_int_opt
-      (Global.parse_int "-9007199254740991")
-      (Some (-9007199254740991))
+    let max_safe = int_of_string "9007199254740991" in
+    assert_int_opt (Global.parse_int "9007199254740991") (Some max_safe);
+    assert_int_opt (Global.parse_int "-9007199254740991") (Some (-max_safe))
   end
   else begin
     (* 32-bit platform: use max 31-bit signed int *)
