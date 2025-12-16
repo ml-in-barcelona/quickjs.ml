@@ -25,15 +25,15 @@ let utf8_to_codepoints s =
 
 (* Convert array of code points to UTF-8 string *)
 let codepoints_to_utf8 cps =
-  let buf = Buffer.create (Array.length cps * 4) in
+  let buf = Stdlib.Buffer.create (Array.length cps * 4) in
   Array.iter
     (fun cp ->
       let u =
         if cp >= 0 && cp <= 0x10FFFF then Uchar.of_int cp else Uchar.rep
       in
-      Buffer.add_utf_8_uchar buf u)
+      Stdlib.Buffer.add_utf_8_uchar buf u)
     cps;
-  Buffer.contents buf
+  Stdlib.Buffer.contents buf
 
 (* Character Classification *)
 
@@ -80,7 +80,7 @@ let case_conv_string conv_type s =
   let cps = utf8_to_codepoints s in
   let res = Ctypes.CArray.make Ctypes.uint32_t lre_cc_res_len_max in
   let res_ptr = Ctypes.CArray.start res in
-  let result = Buffer.create (Stdlib.String.length s * 2) in
+  let result = Stdlib.Buffer.create (Stdlib.String.length s * 2) in
   Array.iter
     (fun cp_int ->
       let cp = Unsigned.UInt32.of_int cp_int in
@@ -90,10 +90,10 @@ let case_conv_string conv_type s =
         let u =
           if code >= 0 && code <= 0x10FFFF then Uchar.of_int code else Uchar.rep
         in
-        Buffer.add_utf_8_uchar result u
+        Stdlib.Buffer.add_utf_8_uchar result u
       done)
     cps;
-  Buffer.contents result
+  Stdlib.Buffer.contents result
 
 let uppercase s = case_conv_string 0 s
 let lowercase s = case_conv_string 1 s

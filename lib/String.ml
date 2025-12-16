@@ -46,7 +46,7 @@ let to_utf16_array s =
 
 (** Convert array of UTF-16 code units back to UTF-8 string *)
 let from_utf16_array arr =
-  let buf = Buffer.create (Array.length arr * 3) in
+  let buf = Stdlib.Buffer.create (Array.length arr * 3) in
   let len = Array.length arr in
   let i = ref 0 in
   while !i < len do
@@ -56,11 +56,11 @@ let from_utf16_array arr =
       let low = arr.(!i + 1) in
       if low >= 0xDC00 && low <= 0xDFFF then begin
         let cp = 0x10000 + ((code - 0xD800) * 0x400) + (low - 0xDC00) in
-        Buffer.add_utf_8_uchar buf (Uchar.of_int cp);
+        Stdlib.Buffer.add_utf_8_uchar buf (Uchar.of_int cp);
         i := !i + 2
       end
       else begin
-        Buffer.add_utf_8_uchar buf (Uchar.of_int code);
+        Stdlib.Buffer.add_utf_8_uchar buf (Uchar.of_int code);
         incr i
       end
     end
@@ -71,11 +71,11 @@ let from_utf16_array arr =
         then Uchar.of_int code
         else Uchar.rep
       in
-      Buffer.add_utf_8_uchar buf u;
+      Stdlib.Buffer.add_utf_8_uchar buf u;
       incr i
     end
   done;
-  Buffer.contents buf
+  Stdlib.Buffer.contents buf
 
 module Prototype = struct
   (** String.prototype methods *)
@@ -448,11 +448,11 @@ module Prototype = struct
     if n < 0 then raise (Invalid_argument "String.repeat: negative count")
     else if n = 0 || Stdlib.String.length s = 0 then ""
     else
-      let buf = Buffer.create (Stdlib.String.length s * n) in
+      let buf = Stdlib.Buffer.create (Stdlib.String.length s * n) in
       for _ = 1 to n do
-        Buffer.add_string buf s
+        Stdlib.Buffer.add_string buf s
       done;
-      Buffer.contents buf
+      Stdlib.Buffer.contents buf
 
   (** match - find first match *)
   let match_ pattern s =
@@ -550,7 +550,7 @@ module Prototype = struct
     let len = Stdlib.String.length replacement in
     if len = 0 then ""
     else
-      let buf = Buffer.create len in
+      let buf = Stdlib.Buffer.create len in
       let i = ref 0 in
       while !i < len do
         let c = Stdlib.String.get replacement !i in
@@ -558,16 +558,16 @@ module Prototype = struct
           let next = Stdlib.String.get replacement (!i + 1) in
           match next with
           | '$' ->
-              Buffer.add_char buf '$';
+              Stdlib.Buffer.add_char buf '$';
               i := !i + 2
           | '&' ->
-              Buffer.add_string buf matched;
+              Stdlib.Buffer.add_string buf matched;
               i := !i + 2
           | '`' ->
-              Buffer.add_string buf before_match;
+              Stdlib.Buffer.add_string buf before_match;
               i := !i + 2
           | '\'' ->
-              Buffer.add_string buf after_match;
+              Stdlib.Buffer.add_string buf after_match;
               i := !i + 2
           | '0' .. '9' ->
               (* Parse capture group number - could be 1 or 2 digits *)
@@ -579,44 +579,44 @@ module Prototype = struct
                     let digit2 = Char.code next2 - Char.code '0' in
                     let n = (digit1 * 10) + digit2 in
                     if n < Array.length captures && n > 0 then begin
-                      Buffer.add_string buf captures.(n);
+                      Stdlib.Buffer.add_string buf captures.(n);
                       i := !i + 3
                     end
                     else if digit1 < Array.length captures && digit1 > 0 then begin
-                      Buffer.add_string buf captures.(digit1);
+                      Stdlib.Buffer.add_string buf captures.(digit1);
                       i := !i + 2
                     end
                     else begin
-                      Buffer.add_char buf '$';
+                      Stdlib.Buffer.add_char buf '$';
                       incr i
                     end
                 | _ ->
                     if digit1 < Array.length captures && digit1 > 0 then begin
-                      Buffer.add_string buf captures.(digit1);
+                      Stdlib.Buffer.add_string buf captures.(digit1);
                       i := !i + 2
                     end
                     else begin
-                      Buffer.add_char buf '$';
+                      Stdlib.Buffer.add_char buf '$';
                       incr i
                     end
               else if digit1 < Array.length captures && digit1 > 0 then begin
-                Buffer.add_string buf captures.(digit1);
+                Stdlib.Buffer.add_string buf captures.(digit1);
                 i := !i + 2
               end
               else begin
-                Buffer.add_char buf '$';
+                Stdlib.Buffer.add_char buf '$';
                 incr i
               end
           | _ ->
-              Buffer.add_char buf '$';
+              Stdlib.Buffer.add_char buf '$';
               incr i
         end
         else begin
-          Buffer.add_char buf c;
+          Stdlib.Buffer.add_char buf c;
           incr i
         end
       done;
-      Buffer.contents buf
+      Stdlib.Buffer.contents buf
 
   (** replace - replace first occurrence *)
   let replace search replacement s =

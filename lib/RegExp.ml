@@ -159,13 +159,13 @@ let flags regexp = flags_to_string regexp.flags
 (* Convert UTF-8 string to UTF-16 code units (as uint8_t pairs, little-endian) *)
 let utf8_to_utf16_bytes s =
   let len = Stdlib.String.length s in
-  let buf = Buffer.create (len * 2) in
+  let buf = Stdlib.Buffer.create (len * 2) in
   let add_u16 code =
-    Buffer.add_char buf (Char.chr (code land 0xFF));
-    Buffer.add_char buf (Char.chr ((code lsr 8) land 0xFF))
+    Stdlib.Buffer.add_char buf (Char.chr (code land 0xFF));
+    Stdlib.Buffer.add_char buf (Char.chr ((code lsr 8) land 0xFF))
   in
   let rec loop i =
-    if i >= len then Buffer.contents buf
+    if i >= len then Stdlib.Buffer.contents buf
     else
       let d = Stdlib.String.get_utf_8_uchar s i in
       let u = Uchar.utf_decode_uchar d in
