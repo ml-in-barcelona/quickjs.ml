@@ -11,34 +11,28 @@ let lre_cc_res_len_max = 3
 
 (* Convert UTF-8 string to array of code points (uint32_t) *)
 let utf8_to_codepoints s =
-  let decoder = Uutf.decoder ~encoding:`UTF_8 (`String s) in
+  let len = Stdlib.String.length s in
   let cps = ref [] in
-  let rec loop () =
-    match Uutf.decode decoder with
-    | `Uchar u ->
-        cps := Uchar.to_int u :: !cps;
-        loop ()
-    | `End -> Array.of_list (List.rev !cps)
-    | `Malformed _ ->
-        (* Replace malformed sequences with replacement character *)
-        cps := 0xFFFD :: !cps;
-        loop ()
-    | `Await -> assert false
+  let rec loop i =
+    if i >= len then Array.of_list (List.rev !cps)
+    else
+      let d = Stdlib.String.get_utf_8_uchar s i in
+      let u = Uchar.utf_decode_uchar d in
+      cps := Uchar.to_int u :: !cps;
+      loop (i + Uchar.utf_decode_length d)
   in
-  loop ()
+  loop 0
 
 (* Convert array of code points to UTF-8 string *)
 let codepoints_to_utf8 cps =
   let buf = Buffer.create (Array.length cps * 4) in
-  let encoder = Uutf.encoder `UTF_8 (`Buffer buf) in
   Array.iter
     (fun cp ->
       let u =
         if cp >= 0 && cp <= 0x10FFFF then Uchar.of_int cp else Uchar.rep
       in
-      ignore (Uutf.encode encoder (`Uchar u)))
+      Buffer.add_utf_8_uchar buf u)
     cps;
-  ignore (Uutf.encode encoder `End);
   Buffer.contents buf
 
 (* Character Classification *)
@@ -87,7 +81,6 @@ let case_conv_string conv_type s =
   let res = Ctypes.CArray.make Ctypes.uint32_t lre_cc_res_len_max in
   let res_ptr = Ctypes.CArray.start res in
   let result = Buffer.create (Stdlib.String.length s * 2) in
-  let encoder = Uutf.encoder `UTF_8 (`Buffer result) in
   Array.iter
     (fun cp_int ->
       let cp = Unsigned.UInt32.of_int cp_int in
@@ -97,10 +90,9 @@ let case_conv_string conv_type s =
         let u =
           if code >= 0 && code <= 0x10FFFF then Uchar.of_int code else Uchar.rep
         in
-        ignore (Uutf.encode encoder (`Uchar u))
+        Buffer.add_utf_8_uchar result u
       done)
     cps;
-  ignore (Uutf.encode encoder `End);
   Buffer.contents result
 
 let uppercase s = case_conv_string 0 s

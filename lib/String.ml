@@ -10,50 +10,43 @@ type normalization = Unicode.normalization = NFC | NFD | NFKC | NFKD
 
 (** Get the UTF-16 length of a string (number of code units) *)
 let utf16_length s =
-  let decoder = Uutf.decoder ~encoding:`UTF_8 (`String s) in
+  let len = Stdlib.String.length s in
   let count = ref 0 in
-  let rec loop () =
-    match Uutf.decode decoder with
-    | `Uchar u ->
-        let code = Uchar.to_int u in
-        if code >= 0x10000 then count := !count + 2 else incr count;
-        loop ()
-    | `End -> !count
-    | `Malformed _ ->
-        incr count;
-        loop ()
-    | `Await -> assert false
+  let rec loop i =
+    if i >= len then !count
+    else
+      let d = Stdlib.String.get_utf_8_uchar s i in
+      let u = Uchar.utf_decode_uchar d in
+      let code = Uchar.to_int u in
+      if code >= 0x10000 then count := !count + 2 else incr count;
+      loop (i + Uchar.utf_decode_length d)
   in
-  loop ()
+  loop 0
 
 (** Convert UTF-8 string to array of UTF-16 code units *)
 let to_utf16_array s =
-  let decoder = Uutf.decoder ~encoding:`UTF_8 (`String s) in
+  let len = Stdlib.String.length s in
   let units = ref [] in
-  let rec loop () =
-    match Uutf.decode decoder with
-    | `Uchar u ->
-        let code = Uchar.to_int u in
-        if code >= 0x10000 then begin
-          (* Surrogate pair - add high first, then low, so after List.rev we get [high; low] *)
-          let code' = code - 0x10000 in
-          units := (0xD800 lor (code' lsr 10)) :: !units;
-          units := (0xDC00 lor (code' land 0x3FF)) :: !units
-        end
-        else units := code :: !units;
-        loop ()
-    | `End -> Array.of_list (List.rev !units)
-    | `Malformed _ ->
-        units := 0xFFFD :: !units;
-        loop ()
-    | `Await -> assert false
+  let rec loop i =
+    if i >= len then Array.of_list (List.rev !units)
+    else
+      let d = Stdlib.String.get_utf_8_uchar s i in
+      let u = Uchar.utf_decode_uchar d in
+      let code = Uchar.to_int u in
+      if code >= 0x10000 then begin
+        (* Surrogate pair - add high first, then low, so after List.rev we get [high; low] *)
+        let code' = code - 0x10000 in
+        units := (0xD800 lor (code' lsr 10)) :: !units;
+        units := (0xDC00 lor (code' land 0x3FF)) :: !units
+      end
+      else units := code :: !units;
+      loop (i + Uchar.utf_decode_length d)
   in
-  loop ()
+  loop 0
 
 (** Convert array of UTF-16 code units back to UTF-8 string *)
 let from_utf16_array arr =
   let buf = Buffer.create (Array.length arr * 3) in
-  let encoder = Uutf.encoder `UTF_8 (`Buffer buf) in
   let len = Array.length arr in
   let i = ref 0 in
   while !i < len do
@@ -63,11 +56,11 @@ let from_utf16_array arr =
       let low = arr.(!i + 1) in
       if low >= 0xDC00 && low <= 0xDFFF then begin
         let cp = 0x10000 + ((code - 0xD800) * 0x400) + (low - 0xDC00) in
-        ignore (Uutf.encode encoder (`Uchar (Uchar.of_int cp)));
+        Buffer.add_utf_8_uchar buf (Uchar.of_int cp);
         i := !i + 2
       end
       else begin
-        ignore (Uutf.encode encoder (`Uchar (Uchar.of_int code)));
+        Buffer.add_utf_8_uchar buf (Uchar.of_int code);
         incr i
       end
     end
@@ -78,11 +71,10 @@ let from_utf16_array arr =
         then Uchar.of_int code
         else Uchar.rep
       in
-      ignore (Uutf.encode encoder (`Uchar u));
+      Buffer.add_utf_8_uchar buf u;
       incr i
     end
   done;
-  ignore (Uutf.encode encoder `End);
   Buffer.contents buf
 
 module Prototype = struct

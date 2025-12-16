@@ -26,7 +26,6 @@
   ;; General system dependencies
   (ocaml (>= 4.14.0))
   (integers (>= 0.7.0))
-  (uutf (>= 1.0.3))
   (ctypes (>= 0.13.0))
 
   ;; Test dependencies
