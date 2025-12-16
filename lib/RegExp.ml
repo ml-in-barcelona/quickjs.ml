@@ -5,14 +5,14 @@ type t = {
   mutable lastIndex : int;
 }
 
-type matchResult = {
+type match_result = {
   captures : string array;
   input : string;
   index : int;
   groups : (string * string) list;
 }
 
-type result = (matchResult, string) Stdlib.result
+type result = (match_result, string) Stdlib.result
 
 type compile_error =
   [ `Unexpected_end
@@ -141,7 +141,7 @@ let index result = match result with Ok result -> result.index | Error _ -> 0
 let lastIndex regexp = regexp.lastIndex
 let source regexp = regexp.source
 let input result = match result with Ok result -> result.input | Error _ -> ""
-let setLastIndex regexp lastIndex = regexp.lastIndex <- lastIndex
+let set_last_index regexp idx = regexp.lastIndex <- idx
 
 let captures result =
   match result with Ok result -> result.captures | Error _ -> [||]

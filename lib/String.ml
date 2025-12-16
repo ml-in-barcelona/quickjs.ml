@@ -1,81 +1,195 @@
 (** JavaScript String built-in object
 
     This module mirrors the JavaScript String API with prototype methods for
-    string manipulation. All methods use UTF-16 semantics for indices. *)
+    string manipulation. All methods use UTF-16 semantics for indices.
+
+    {2 UTF-8 Validation}
+
+    This module expects valid UTF-8 input. When malformed UTF-8 is encountered:
+    - Invalid byte sequences are replaced with U+FFFD (replacement character)
+    - The replacement preserves iteration behavior (each invalid sequence = 1
+      replacement)
+    - This matches JavaScript's behavior when handling invalid string data
+
+    Use [is_valid_utf8] to check strings before processing if strict validation
+    is required. *)
 
 (* Re-export normalization type from Unicode *)
 type normalization = Unicode.normalization = NFC | NFD | NFKC | NFKD
 
+(** Check if a string is valid UTF-8. Returns true if all byte sequences are
+    valid UTF-8 encoded characters. *)
+let is_valid_utf8 s =
+  let len = Stdlib.String.length s in
+  let rec check i =
+    if i >= len then true
+    else
+      let d = Stdlib.String.get_utf_8_uchar s i in
+      if Uchar.utf_decode_is_valid d then check (i + Uchar.utf_decode_length d)
+      else false
+  in
+  check 0
+
 (* UTF-16 helper functions *)
 
-(** Get the UTF-16 length of a string (number of code units) *)
+(** Get the UTF-16 length of a string (number of code units). Uses
+    tail-recursive iteration for stack safety. *)
 let utf16_length s =
   let len = Stdlib.String.length s in
-  let count = ref 0 in
-  let rec loop i =
-    if i >= len then !count
+  let rec loop i count =
+    if i >= len then count
     else
       let d = Stdlib.String.get_utf_8_uchar s i in
       let u = Uchar.utf_decode_uchar d in
       let code = Uchar.to_int u in
-      if code >= 0x10000 then count := !count + 2 else incr count;
-      loop (i + Uchar.utf_decode_length d)
+      let units = if code >= 0x10000 then 2 else 1 in
+      loop (i + Uchar.utf_decode_length d) (count + units)
   in
-  loop 0
+  loop 0 0
 
-(** Convert UTF-8 string to array of UTF-16 code units *)
+(** Result of looking up a UTF-16 index in a UTF-8 string *)
+type utf16_lookup_result =
+  | Out_of_bounds
+  | Single_unit of int (* BMP character: code point *)
+  | High_surrogate of int * int (* Surrogate pair: high unit, full code point *)
+  | Low_surrogate of int (* Low surrogate: low unit *)
+
+(** Look up a single UTF-16 code unit at the given index. This is O(n) where n
+    is the index, but avoids allocating the full array. For repeated access at
+    nearby indices, use to_utf16_array instead. *)
+let utf16_at idx s =
+  if idx < 0 then Out_of_bounds
+  else
+    let len = Stdlib.String.length s in
+    let rec loop i u16_idx =
+      if i >= len then Out_of_bounds
+      else
+        let d = Stdlib.String.get_utf_8_uchar s i in
+        let u = Uchar.utf_decode_uchar d in
+        let code = Uchar.to_int u in
+        if code >= 0x10000 then begin
+          (* This character takes 2 UTF-16 code units (surrogate pair) *)
+          if u16_idx = idx then
+            (* Requesting high surrogate *)
+            let code' = code - 0x10000 in
+            let high = 0xD800 lor (code' lsr 10) in
+            High_surrogate (high, code)
+          else if u16_idx + 1 = idx then
+            (* Requesting low surrogate *)
+            let code' = code - 0x10000 in
+            let low = 0xDC00 lor (code' land 0x3FF) in
+            Low_surrogate low
+          else loop (i + Uchar.utf_decode_length d) (u16_idx + 2)
+        end
+        else begin
+          (* This character takes 1 UTF-16 code unit *)
+          if u16_idx = idx then Single_unit code
+          else loop (i + Uchar.utf_decode_length d) (u16_idx + 1)
+        end
+    in
+    loop 0 0
+
+(** Convert UTF-8 string to array of UTF-16 code units. Two-pass approach: first
+    count, then fill. Tail-recursive and stack-safe. *)
 let to_utf16_array s =
-  let len = Stdlib.String.length s in
-  let units = ref [] in
-  let rec loop i =
-    if i >= len then Array.of_list (List.rev !units)
-    else
-      let d = Stdlib.String.get_utf_8_uchar s i in
-      let u = Uchar.utf_decode_uchar d in
-      let code = Uchar.to_int u in
-      if code >= 0x10000 then begin
-        (* Surrogate pair - add high first, then low, so after List.rev we get [high; low] *)
-        let code' = code - 0x10000 in
-        units := (0xD800 lor (code' lsr 10)) :: !units;
-        units := (0xDC00 lor (code' land 0x3FF)) :: !units
-      end
-      else units := code :: !units;
-      loop (i + Uchar.utf_decode_length d)
-  in
-  loop 0
+  let byte_len = Stdlib.String.length s in
+  (* First pass: count UTF-16 code units *)
+  let u16_len = utf16_length s in
+  if u16_len = 0 then [||]
+  else begin
+    let arr = Array.make u16_len 0 in
+    (* Second pass: fill the array *)
+    let rec fill byte_idx u16_idx =
+      if byte_idx >= byte_len then ()
+      else
+        let d = Stdlib.String.get_utf_8_uchar s byte_idx in
+        let u = Uchar.utf_decode_uchar d in
+        let code = Uchar.to_int u in
+        if code >= 0x10000 then begin
+          (* Surrogate pair *)
+          let code' = code - 0x10000 in
+          arr.(u16_idx) <- 0xD800 lor (code' lsr 10);
+          arr.(u16_idx + 1) <- 0xDC00 lor (code' land 0x3FF);
+          fill (byte_idx + Uchar.utf_decode_length d) (u16_idx + 2)
+        end
+        else begin
+          arr.(u16_idx) <- code;
+          fill (byte_idx + Uchar.utf_decode_length d) (u16_idx + 1)
+        end
+    in
+    fill 0 0;
+    arr
+  end
 
-(** Convert array of UTF-16 code units back to UTF-8 string *)
+(** Check if a string contains only ASCII characters (bytes < 128). For
+    ASCII-only strings, byte indices equal UTF-16 indices. *)
+let is_ascii s =
+  let len = Stdlib.String.length s in
+  let rec check i =
+    if i >= len then true
+    else if Char.code (Stdlib.String.get s i) >= 128 then false
+    else check (i + 1)
+  in
+  check 0
+
+(** JavaScript whitespace characters (per ECMA-262). Includes ASCII whitespace,
+    Unicode spaces, and line terminators. *)
+let is_whitespace code =
+  code = 0x20 (* space *) || code = 0x09 (* tab *)
+  || code = 0x0A (* line feed *)
+  || code = 0x0B (* vertical tab *)
+  || code = 0x0C (* form feed *)
+  || code = 0x0D (* carriage return *)
+  || code = 0xA0 (* non-breaking space *)
+  || code = 0xFEFF (* BOM / zero-width no-break space *)
+  || (code >= 0x2000 && code <= 0x200A) (* various Unicode spaces *)
+  || code = 0x2028 (* line separator *)
+  || code = 0x2029 (* paragraph separator *)
+  || code = 0x202F (* narrow no-break space *)
+  || code = 0x205F (* medium mathematical space *)
+  || code = 0x3000 (* ideographic space *)
+
+(** Convert array of UTF-16 code units back to UTF-8 string. Tail-recursive for
+    stack safety. Handles surrogate pairs correctly. *)
 let from_utf16_array arr =
-  let buf = Stdlib.Buffer.create (Array.length arr * 3) in
   let len = Array.length arr in
-  let i = ref 0 in
-  while !i < len do
-    let code = arr.(!i) in
-    if code >= 0xD800 && code <= 0xDBFF && !i + 1 < len then begin
-      (* High surrogate, check for low *)
-      let low = arr.(!i + 1) in
-      if low >= 0xDC00 && low <= 0xDFFF then begin
-        let cp = 0x10000 + ((code - 0xD800) * 0x400) + (low - 0xDC00) in
-        Stdlib.Buffer.add_utf_8_uchar buf (Uchar.of_int cp);
-        i := !i + 2
-      end
-      else begin
-        Stdlib.Buffer.add_utf_8_uchar buf (Uchar.of_int code);
-        incr i
-      end
-    end
-    else begin
-      let u =
-        if
-          code >= 0 && code <= 0x10FFFF && not (code >= 0xD800 && code <= 0xDFFF)
-        then Uchar.of_int code
-        else Uchar.rep
-      in
-      Stdlib.Buffer.add_utf_8_uchar buf u;
-      incr i
-    end
-  done;
-  Stdlib.Buffer.contents buf
+  if len = 0 then ""
+  else begin
+    let buf = Stdlib.Buffer.create (len * 3) in
+    let rec loop i =
+      if i >= len then Stdlib.Buffer.contents buf
+      else
+        let code = arr.(i) in
+        if code >= 0xD800 && code <= 0xDBFF && i + 1 < len then begin
+          (* High surrogate, check for low *)
+          let low = arr.(i + 1) in
+          if low >= 0xDC00 && low <= 0xDFFF then begin
+            let cp = 0x10000 + ((code - 0xD800) * 0x400) + (low - 0xDC00) in
+            Stdlib.Buffer.add_utf_8_uchar buf (Uchar.of_int cp);
+            loop (i + 2)
+          end
+          else begin
+            (* Lone high surrogate - output as-is (invalid but we handle it) *)
+            Stdlib.Buffer.add_utf_8_uchar buf Uchar.rep;
+            loop (i + 1)
+          end
+        end
+        else if code >= 0xDC00 && code <= 0xDFFF then begin
+          (* Lone low surrogate - output replacement character *)
+          Stdlib.Buffer.add_utf_8_uchar buf Uchar.rep;
+          loop (i + 1)
+        end
+        else begin
+          let u =
+            if code >= 0 && code <= 0x10FFFF then Uchar.of_int code
+            else Uchar.rep
+          in
+          Stdlib.Buffer.add_utf_8_uchar buf u;
+          loop (i + 1)
+        end
+    in
+    loop 0
+  end
 
 module Prototype = struct
   (** String.prototype methods *)
@@ -87,35 +201,44 @@ module Prototype = struct
   (** Get the UTF-16 length of a string *)
   let length = utf16_length
 
-  (** Get character at UTF-16 index *)
+  (** Get character at UTF-16 index. Optimized to avoid full array conversion
+      for single character access. Note: Accessing a lone surrogate returns the
+      replacement character since UTF-8 cannot represent unpaired surrogates. *)
   let char_at idx s =
-    if idx < 0 then ""
-    else
-      let arr = to_utf16_array s in
-      if idx >= Array.length arr then "" else from_utf16_array [| arr.(idx) |]
+    match utf16_at idx s with
+    | Out_of_bounds -> ""
+    | Single_unit code ->
+        let buf = Stdlib.Buffer.create 4 in
+        Stdlib.Buffer.add_utf_8_uchar buf (Uchar.of_int code);
+        Stdlib.Buffer.contents buf
+    | High_surrogate (_, full_code) ->
+        (* Return the full character for high surrogate position *)
+        let buf = Stdlib.Buffer.create 4 in
+        Stdlib.Buffer.add_utf_8_uchar buf (Uchar.of_int full_code);
+        Stdlib.Buffer.contents buf
+    | Low_surrogate _ ->
+        (* Lone low surrogate - return replacement character (UTF-8 can't represent surrogates) *)
+        let buf = Stdlib.Buffer.create 4 in
+        Stdlib.Buffer.add_utf_8_uchar buf Uchar.rep;
+        Stdlib.Buffer.contents buf
 
-  (** Get UTF-16 code unit at index *)
+  (** Get UTF-16 code unit at index. Optimized to avoid full array conversion
+      for single character access. *)
   let char_code_at idx s =
-    if idx < 0 then None
-    else
-      let arr = to_utf16_array s in
-      if idx >= Array.length arr then None else Some arr.(idx)
+    match utf16_at idx s with
+    | Out_of_bounds -> None
+    | Single_unit code -> Some code
+    | High_surrogate (high, _) -> Some high
+    | Low_surrogate low -> Some low
 
-  (** Get full Unicode code point at UTF-16 index *)
+  (** Get full Unicode code point at UTF-16 index. Optimized to avoid full array
+      conversion for single character access. *)
   let code_point_at idx s =
-    if idx < 0 then None
-    else
-      let arr = to_utf16_array s in
-      let len = Array.length arr in
-      if idx >= len then None
-      else
-        let code = arr.(idx) in
-        if code >= 0xD800 && code <= 0xDBFF && idx + 1 < len then
-          let low = arr.(idx + 1) in
-          if low >= 0xDC00 && low <= 0xDFFF then
-            Some (0x10000 + ((code - 0xD800) * 0x400) + (low - 0xDC00))
-          else Some code
-        else Some code
+    match utf16_at idx s with
+    | Out_of_bounds -> None
+    | Single_unit code -> Some code
+    | High_surrogate (_, full_code) -> Some full_code
+    | Low_surrogate low -> Some low
 
   (** Clamp value to range [min, max] *)
   let clamp v min max = if v < min then min else if v > max then max else v
@@ -169,10 +292,25 @@ module Prototype = struct
     if start >= len then ""
     else from_utf16_array (Array.sub arr start (len - start))
 
-  (** indexOf - find first occurrence *)
+  (** indexOf - find first occurrence. Optimized fast path for ASCII-only
+      strings. *)
   let index_of search s =
     if Stdlib.String.length search = 0 then 0
-    else
+    else if is_ascii s && is_ascii search then begin
+      (* Fast path: for ASCII strings, byte indices = UTF-16 indices *)
+      let s_len = Stdlib.String.length s in
+      let search_len = Stdlib.String.length search in
+      if search_len > s_len then -1
+      else
+        let rec find i =
+          if i > s_len - search_len then -1
+          else if Stdlib.String.sub s i search_len = search then i
+          else find (i + 1)
+        in
+        find 0
+    end
+    else begin
+      (* General path: convert to UTF-16 *)
       let s_arr = to_utf16_array s in
       let search_arr = to_utf16_array search in
       let s_len = Array.length s_arr in
@@ -192,6 +330,7 @@ module Prototype = struct
           incr i
         done;
         !found
+    end
 
   let index_of_from search start s =
     if Stdlib.String.length search = 0 then
@@ -219,10 +358,24 @@ module Prototype = struct
         done;
         !found
 
-  (** lastIndexOf - find last occurrence *)
+  (** lastIndexOf - find last occurrence. Optimized fast path for ASCII-only
+      strings. *)
   let last_index_of search s =
     if Stdlib.String.length search = 0 then utf16_length s
-    else
+    else if is_ascii s && is_ascii search then begin
+      (* Fast path: for ASCII strings, byte indices = UTF-16 indices *)
+      let s_len = Stdlib.String.length s in
+      let search_len = Stdlib.String.length search in
+      if search_len > s_len then -1
+      else
+        let rec find i =
+          if i < 0 then -1
+          else if Stdlib.String.sub s i search_len = search then i
+          else find (i - 1)
+        in
+        find (s_len - search_len)
+    end
+    else begin
       let s_arr = to_utf16_array s in
       let search_arr = to_utf16_array search in
       let s_len = Array.length s_arr in
@@ -240,6 +393,7 @@ module Prototype = struct
           if !matches && !found = -1 then found := i
         done;
         !found
+    end
 
   let last_index_of_from search pos s =
     if Stdlib.String.length search = 0 then clamp pos 0 (utf16_length s)
@@ -269,21 +423,30 @@ module Prototype = struct
 
   let includes_from search pos s = index_of_from search pos s >= 0
 
-  (** startsWith - check if string starts with search *)
+  (** startsWith - check if string starts with search. Optimized fast path for
+      ASCII-only strings. *)
   let starts_with search s =
-    let search_arr = to_utf16_array search in
-    let s_arr = to_utf16_array s in
-    let search_len = Array.length search_arr in
-    let s_len = Array.length s_arr in
-    if search_len > s_len then false
-    else
-      let matches = ref true in
-      let i = ref 0 in
-      while !matches && !i < search_len do
-        if s_arr.(!i) <> search_arr.(!i) then matches := false;
-        incr i
-      done;
-      !matches
+    if is_ascii s && is_ascii search then begin
+      (* Fast path: direct string comparison for ASCII *)
+      let search_len = Stdlib.String.length search in
+      let s_len = Stdlib.String.length s in
+      search_len <= s_len && Stdlib.String.sub s 0 search_len = search
+    end
+    else begin
+      let search_arr = to_utf16_array search in
+      let s_arr = to_utf16_array s in
+      let search_len = Array.length search_arr in
+      let s_len = Array.length s_arr in
+      if search_len > s_len then false
+      else
+        let matches = ref true in
+        let i = ref 0 in
+        while !matches && !i < search_len do
+          if s_arr.(!i) <> search_arr.(!i) then matches := false;
+          incr i
+        done;
+        !matches
+    end
 
   let starts_with_from search pos s =
     let search_arr = to_utf16_array search in
@@ -301,22 +464,32 @@ module Prototype = struct
       done;
       !matches
 
-  (** endsWith - check if string ends with search *)
+  (** endsWith - check if string ends with search. Optimized fast path for
+      ASCII-only strings. *)
   let ends_with search s =
-    let search_arr = to_utf16_array search in
-    let s_arr = to_utf16_array s in
-    let search_len = Array.length search_arr in
-    let s_len = Array.length s_arr in
-    if search_len > s_len then false
-    else
-      let start = s_len - search_len in
-      let matches = ref true in
-      let i = ref 0 in
-      while !matches && !i < search_len do
-        if s_arr.(start + !i) <> search_arr.(!i) then matches := false;
-        incr i
-      done;
-      !matches
+    if is_ascii s && is_ascii search then begin
+      (* Fast path: direct string comparison for ASCII *)
+      let search_len = Stdlib.String.length search in
+      let s_len = Stdlib.String.length s in
+      search_len <= s_len
+      && Stdlib.String.sub s (s_len - search_len) search_len = search
+    end
+    else begin
+      let search_arr = to_utf16_array search in
+      let s_arr = to_utf16_array s in
+      let search_len = Array.length search_arr in
+      let s_len = Array.length s_arr in
+      if search_len > s_len then false
+      else
+        let start = s_len - search_len in
+        let matches = ref true in
+        let i = ref 0 in
+        while !matches && !i < search_len do
+          if s_arr.(start + !i) <> search_arr.(!i) then matches := false;
+          incr i
+        done;
+        !matches
+    end
 
   let ends_with_at search end_pos s =
     let search_arr = to_utf16_array search in
@@ -340,61 +513,43 @@ module Prototype = struct
     let arr = to_utf16_array s in
     let len = Array.length arr in
     if len = 0 then ""
-    else
-      let is_ws code =
-        code = 0x20 || code = 0x09 || code = 0x0A || code = 0x0B || code = 0x0C
-        || code = 0x0D || code = 0xA0 || code = 0xFEFF
-        || (code >= 0x2000 && code <= 0x200A)
-        || code = 0x2028 || code = 0x2029 || code = 0x202F || code = 0x205F
-        || code = 0x3000
-      in
+    else begin
       let start = ref 0 in
-      while !start < len && is_ws arr.(!start) do
+      while !start < len && is_whitespace arr.(!start) do
         incr start
       done;
       let end_ = ref (len - 1) in
-      while !end_ >= !start && is_ws arr.(!end_) do
+      while !end_ >= !start && is_whitespace arr.(!end_) do
         decr end_
       done;
       if !start > !end_ then ""
       else from_utf16_array (Array.sub arr !start (!end_ - !start + 1))
+    end
 
   let trim_start s =
     let arr = to_utf16_array s in
     let len = Array.length arr in
     if len = 0 then ""
-    else
-      let is_ws code =
-        code = 0x20 || code = 0x09 || code = 0x0A || code = 0x0B || code = 0x0C
-        || code = 0x0D || code = 0xA0 || code = 0xFEFF
-        || (code >= 0x2000 && code <= 0x200A)
-        || code = 0x2028 || code = 0x2029 || code = 0x202F || code = 0x205F
-        || code = 0x3000
-      in
+    else begin
       let start = ref 0 in
-      while !start < len && is_ws arr.(!start) do
+      while !start < len && is_whitespace arr.(!start) do
         incr start
       done;
       if !start >= len then ""
       else from_utf16_array (Array.sub arr !start (len - !start))
+    end
 
   let trim_end s =
     let arr = to_utf16_array s in
     let len = Array.length arr in
     if len = 0 then ""
-    else
-      let is_ws code =
-        code = 0x20 || code = 0x09 || code = 0x0A || code = 0x0B || code = 0x0C
-        || code = 0x0D || code = 0xA0 || code = 0xFEFF
-        || (code >= 0x2000 && code <= 0x200A)
-        || code = 0x2028 || code = 0x2029 || code = 0x202F || code = 0x205F
-        || code = 0x3000
-      in
+    else begin
       let end_ = ref (len - 1) in
-      while !end_ >= 0 && is_ws arr.(!end_) do
+      while !end_ >= 0 && is_whitespace arr.(!end_) do
         decr end_
       done;
       if !end_ < 0 then "" else from_utf16_array (Array.sub arr 0 (!end_ + 1))
+    end
 
   (** padStart - pad to length with fill string *)
   let pad_start target_len s =
@@ -484,7 +639,7 @@ module Prototype = struct
           else begin
             matches := caps.(0) :: !matches;
             if caps.(0) = "" then
-              RegExp.setLastIndex re (RegExp.lastIndex re + 1)
+              RegExp.set_last_index re (RegExp.lastIndex re + 1)
           end
         done;
         Array.of_list (List.rev !matches)
@@ -517,7 +672,7 @@ module Prototype = struct
               }
               :: !matches;
             if caps.(0) = "" then
-              RegExp.setLastIndex re (RegExp.lastIndex re + 1)
+              RegExp.set_last_index re (RegExp.lastIndex re + 1)
           end
         done;
         List.rev !matches
@@ -659,7 +814,7 @@ module Prototype = struct
         let last_index = ref 0 in
         let continue = ref true in
         let parts = ref [] in
-        RegExp.setLastIndex re 0;
+        RegExp.set_last_index re 0;
         while !continue do
           let match_result = RegExp.exec re !current in
           let caps = RegExp.captures match_result in
@@ -679,7 +834,7 @@ module Prototype = struct
             last_index := match_end;
             if match_str = "" then begin
               last_index := !last_index + 1;
-              RegExp.setLastIndex re !last_index
+              RegExp.set_last_index re !last_index
             end
           end
         done;
@@ -826,7 +981,7 @@ module Prototype = struct
             last_index := idx + utf16_length match_str;
             if match_str = "" then begin
               last_index := !last_index + 1;
-              RegExp.setLastIndex re !last_index
+              RegExp.set_last_index re !last_index
             end
           end
         done;
