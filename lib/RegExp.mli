@@ -22,7 +22,7 @@ val compile : flags:string -> string -> (t, compile_error) Stdlib.result
 val lastIndex : t -> int
 (** returns the index where the next match will start its search *)
 
-val setLastIndex : t -> int -> unit
+val set_last_index : t -> int -> unit
 (** sets the index at which the next match (RegExp.exec or RegExp.test) will
     start its search from *)
 

@@ -5,14 +5,14 @@ type t = {
   mutable lastIndex : int;
 }
 
-type matchResult = {
+type match_result = {
   captures : string array;
   input : string;
   index : int;
   groups : (string * string) list;
 }
 
-type result = (matchResult, string) Stdlib.result
+type result = (match_result, string) Stdlib.result
 
 type compile_error =
   [ `Unexpected_end
@@ -141,7 +141,7 @@ let index result = match result with Ok result -> result.index | Error _ -> 0
 let lastIndex regexp = regexp.lastIndex
 let source regexp = regexp.source
 let input result = match result with Ok result -> result.input | Error _ -> ""
-let setLastIndex regexp lastIndex = regexp.lastIndex <- lastIndex
+let set_last_index regexp idx = regexp.lastIndex <- idx
 
 let captures result =
   match result with Ok result -> result.captures | Error _ -> [||]
@@ -158,56 +158,48 @@ let flags regexp = flags_to_string regexp.flags
 
 (* Convert UTF-8 string to UTF-16 code units (as uint8_t pairs, little-endian) *)
 let utf8_to_utf16_bytes s =
-  let decoder = Uutf.decoder ~encoding:`UTF_8 (`String s) in
-  let buf = Buffer.create (Stdlib.String.length s * 2) in
+  let len = Stdlib.String.length s in
+  let buf = Stdlib.Buffer.create (len * 2) in
   let add_u16 code =
-    Buffer.add_char buf (Char.chr (code land 0xFF));
-    Buffer.add_char buf (Char.chr ((code lsr 8) land 0xFF))
+    Stdlib.Buffer.add_char buf (Char.chr (code land 0xFF));
+    Stdlib.Buffer.add_char buf (Char.chr ((code lsr 8) land 0xFF))
   in
-  let rec loop () =
-    match Uutf.decode decoder with
-    | `Uchar u ->
-        let code = Uchar.to_int u in
-        (if code < 0x10000 then add_u16 code
-         else
-           (* Surrogate pair for code points >= 0x10000 *)
-           let code' = code - 0x10000 in
-           add_u16 (0xD800 lor (code' lsr 10));
-           add_u16 (0xDC00 lor (code' land 0x3FF)));
-        loop ()
-    | `End -> Buffer.contents buf
-    | `Malformed _ ->
-        add_u16 0xFFFD;
-        (* Replacement character *)
-        loop ()
-    | `Await -> assert false
+  let rec loop i =
+    if i >= len then Stdlib.Buffer.contents buf
+    else
+      let d = Stdlib.String.get_utf_8_uchar s i in
+      let u = Uchar.utf_decode_uchar d in
+      let code = Uchar.to_int u in
+      (if code < 0x10000 then add_u16 code
+       else
+         (* Surrogate pair for code points >= 0x10000 *)
+         let code' = code - 0x10000 in
+         add_u16 (0xD800 lor (code' lsr 10));
+         add_u16 (0xDC00 lor (code' land 0x3FF)));
+      loop (i + Uchar.utf_decode_length d)
   in
-  loop ()
+  loop 0
 
 (* Build a mapping from UTF-16 code unit index to UTF-8 byte index *)
 let build_utf16_to_utf8_map s =
-  let decoder = Uutf.decoder ~encoding:`UTF_8 (`String s) in
+  let len = Stdlib.String.length s in
   let map = ref [] in
   let utf16_idx = ref 0 in
-  let rec loop () =
-    let byte_idx = Uutf.decoder_byte_count decoder in
-    match Uutf.decode decoder with
-    | `Uchar u ->
-        map := (!utf16_idx, byte_idx) :: !map;
-        let code = Uchar.to_int u in
-        if code < 0x10000 then incr utf16_idx else utf16_idx := !utf16_idx + 2;
-        (* Surrogate pair *)
-        loop ()
-    | `End ->
-        map := (!utf16_idx, byte_idx) :: !map;
-        Array.of_list (List.rev !map)
-    | `Malformed _ ->
-        map := (!utf16_idx, byte_idx) :: !map;
-        incr utf16_idx;
-        loop ()
-    | `Await -> assert false
+  let rec loop i =
+    if i >= len then begin
+      map := (!utf16_idx, i) :: !map;
+      Array.of_list (List.rev !map)
+    end
+    else
+      let d = Stdlib.String.get_utf_8_uchar s i in
+      let u = Uchar.utf_decode_uchar d in
+      map := (!utf16_idx, i) :: !map;
+      let code = Uchar.to_int u in
+      if code < 0x10000 then incr utf16_idx else utf16_idx := !utf16_idx + 2;
+      (* Surrogate pair *)
+      loop (i + Uchar.utf_decode_length d)
   in
-  loop ()
+  loop 0
 
 (* Convert UTF-16 index to UTF-8 byte index using the map *)
 let utf16_to_utf8_index map utf16_idx =
@@ -224,25 +216,19 @@ let utf16_to_utf8_index map utf16_idx =
 
 (* Convert UTF-8 byte index to UTF-16 code unit index *)
 let utf8_to_utf16_index s utf8_idx =
-  let decoder = Uutf.decoder ~encoding:`UTF_8 (`String s) in
+  let len = Stdlib.String.length s in
   let utf16_idx = ref 0 in
-  let rec loop () =
-    let byte_idx = Uutf.decoder_byte_count decoder in
-    if byte_idx >= utf8_idx then !utf16_idx
+  let rec loop i =
+    if i >= utf8_idx || i >= len then !utf16_idx
     else
-      match Uutf.decode decoder with
-      | `Uchar u ->
-          let code = Uchar.to_int u in
-          if code < 0x10000 then incr utf16_idx else utf16_idx := !utf16_idx + 2;
-          (* Surrogate pair *)
-          loop ()
-      | `End -> !utf16_idx
-      | `Malformed _ ->
-          incr utf16_idx;
-          loop ()
-      | `Await -> assert false
+      let d = Stdlib.String.get_utf_8_uchar s i in
+      let u = Uchar.utf_decode_uchar d in
+      let code = Uchar.to_int u in
+      if code < 0x10000 then incr utf16_idx else utf16_idx := !utf16_idx + 2;
+      (* Surrogate pair *)
+      loop (i + Uchar.utf_decode_length d)
   in
-  loop ()
+  loop 0
 
 (* exec is not a binding to lre_exec but an implementation of `js_regexp_exec` *)
 let exec regexp input =

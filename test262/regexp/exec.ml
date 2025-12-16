@@ -198,7 +198,7 @@ let a3_t3 () =
   let re = regexp_compile "\\d+" ~flags:"g" in
   let input = "a1b22c333d" in
 
-  RegExp.setLastIndex re 3;
+  RegExp.set_last_index re 3;
   (* Start after "a1b" *)
   let result = RegExp.exec re input in
   assert_array (RegExp.captures result) [| "22" |];
@@ -209,7 +209,7 @@ let a3_t4 () =
   let re = regexp_compile "a" ~flags:"g" in
   let input = "abc" in
 
-  RegExp.setLastIndex re 100;
+  RegExp.set_last_index re 100;
   let result = RegExp.exec re input in
   assert_array (RegExp.captures result) [||];
   assert_int (RegExp.lastIndex re) 0
@@ -259,7 +259,7 @@ let a3_t7 () =
   assert_array (RegExp.captures result) [||];
 
   (* b is not at position 0 *)
-  RegExp.setLastIndex re 1;
+  RegExp.set_last_index re 1;
   let result2 = RegExp.exec re input in
   assert_array (RegExp.captures result2) [| "b" |]
 (* now it matches *)

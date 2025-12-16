@@ -180,13 +180,13 @@ let flag_y () =
   assert_bool (RegExp.test re "abc") true;
   (* matches at position 0, lastIndex becomes 1 *)
   (* Reset lastIndex to test from position 0 again *)
-  RegExp.setLastIndex re 0;
+  RegExp.set_last_index re 0;
   assert_bool (RegExp.test re "bac") false (* doesn't match at position 0 *)
 
 let flag_y_lastindex () =
   (* Sticky flag with lastIndex *)
   let re = regexp_compile "a" ~flags:"y" in
-  RegExp.setLastIndex re 1;
+  RegExp.set_last_index re 1;
   assert_bool (RegExp.test re "bac") true;
   (* matches at position 1 *)
   assert_int (RegExp.lastIndex re) 2

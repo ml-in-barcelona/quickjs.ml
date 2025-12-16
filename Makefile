@@ -56,8 +56,13 @@ create-switch: ## Create opam switch
 install: ## Install dependencies
 	opam install . --deps-only --with-test --with-dev-setup --with-doc -y
 
+.PHONY: submodules
+submodules: ## Initialize and fetch git submodules (quickjs)
+	git submodule init
+	git submodule update --recursive --force
+
 .PHONY: init
-init: setup-githooks create-switch install ## Create a local dev enviroment
+init: submodules setup-githooks create-switch install ## Create a local dev enviroment
 
 .PHONY: bench
 bench: ## Run benchmark (make bench [quick|compare|scaling|edge|all])

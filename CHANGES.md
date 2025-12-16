@@ -1,5 +1,9 @@
 # Changes
 
+## Unreleased
+
+- Remove `uutf`
+
 ## 0.4.0
 
 - **Breaking:** Migrated from `bellard/quickjs` to `quickjs-ng/quickjs` - the actively maintained community fork with Unicode 17.0.0 support, better spec compliance, and ongoing development

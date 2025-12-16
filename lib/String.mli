@@ -1,10 +1,36 @@
 (** JavaScript String built-in object
 
     This module mirrors the JavaScript String API with prototype methods for
-    string manipulation. All methods use UTF-16 semantics for indices. *)
+    string manipulation. All methods use UTF-16 semantics for indices.
+
+    {2 JavaScript vs OCaml Semantics}
+
+    This library follows JavaScript semantics in most cases to ensure
+    compatibility with the ECMA-262 specification:
+
+    - {b Indices}: All string indices are UTF-16 code unit positions, not byte
+      positions. A string containing an emoji has length 2 (surrogate pair).
+
+    - {b Not-found values}: Methods like [index_of] return [-1] when not found
+      (JavaScript convention), not [option] (OCaml convention). This matches
+      JavaScript's String.prototype.indexOf().
+
+    - {b Character access}: Methods like [char_code_at] return [int option]
+      (OCaml convention) for bounds checking, since OCaml does not have
+      JavaScript's implicit NaN coercion.
+
+    - {b Negative indices}: Methods like [slice] support negative indices
+      counting from the end, matching JavaScript behavior. *)
 
 (** Unicode normalization forms *)
 type normalization = NFC | NFD | NFKC | NFKD
+
+val is_valid_utf8 : string -> bool
+(** [is_valid_utf8 s] returns [true] if [s] contains only valid UTF-8 byte
+    sequences. Use this for strict validation before processing untrusted input.
+
+    Note: All functions in this module handle invalid UTF-8 gracefully by
+    replacing malformed sequences with U+FFFD (replacement character). *)
 
 module Prototype : sig
   (** String.prototype methods *)
@@ -78,8 +104,8 @@ module Prototype : sig
 
   val index_of : string -> string -> int
   (** [index_of search s] returns UTF-16 index of first occurrence of [search]
-      in [s]. Returns -1 if not found. Equivalent to JavaScript's
-      String.prototype.indexOf(). *)
+      in [s]. Returns -1 if not found (JavaScript semantics). Equivalent to
+      JavaScript's String.prototype.indexOf(). *)
 
   val index_of_from : string -> int -> string -> int
   (** [index_of_from search pos s] searches starting from position [pos]. *)
@@ -178,8 +204,9 @@ module Prototype : sig
       Equivalent to JavaScript's String.prototype.matchAll(). *)
 
   val search : string -> string -> int
-  (** [search pattern s] returns UTF-16 index of first match, or -1 if not
-      found. Equivalent to JavaScript's String.prototype.search(). *)
+  (** [search pattern s] returns UTF-16 index of first match, or -1 if not found
+      (JavaScript semantics). Equivalent to JavaScript's
+      String.prototype.search(). *)
 
   val search_flags : string -> string -> string -> int
   (** [search_flags pattern flags s] searches with specified regex flags. *)
