@@ -1,6 +1,6 @@
 # Changes
 
-## Unreleased
+## 0.4.1
 
 - Remove `uutf`
 
