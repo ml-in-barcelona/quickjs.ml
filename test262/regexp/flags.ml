@@ -150,7 +150,7 @@ let sticky_behavior () =
   assert_bool (RegExp.test re "abc") true;
 
   (* After match, lastIndex advances *)
-  assert_int (RegExp.lastIndex re) 1;
+  assert_int (RegExp.last_index re) 1;
 
   (* Next test fails because 'b' is at position 1 *)
   assert_bool (RegExp.test re "abc") false
@@ -197,16 +197,16 @@ let flags_gy_behavior () =
   let re = regexp_compile "a" ~flags:"gy" in
 
   assert_bool (RegExp.test re "aaa") true;
-  assert_int (RegExp.lastIndex re) 1;
+  assert_int (RegExp.last_index re) 1;
 
   assert_bool (RegExp.test re "aaa") true;
-  assert_int (RegExp.lastIndex re) 2;
+  assert_int (RegExp.last_index re) 2;
 
   assert_bool (RegExp.test re "aaa") true;
-  assert_int (RegExp.lastIndex re) 3;
+  assert_int (RegExp.last_index re) 3;
 
   assert_bool (RegExp.test re "aaa") false;
-  assert_int (RegExp.lastIndex re) 0
+  assert_int (RegExp.last_index re) 0
 
 (* ===================================================================
    Flag accessor consistency

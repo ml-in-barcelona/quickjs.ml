@@ -2,7 +2,7 @@ type t = {
   bc : Unsigned.uint8 Ctypes_static.ptr;
   source : string;
   flags : int;
-  mutable lastIndex : int;
+  mutable last_index : int;
 }
 
 type match_result = {
@@ -124,7 +124,7 @@ let compile ~flags re =
       input_length flags Ctypes.null
   in
   match Ctypes.is_null compiled_byte_code with
-  | false -> Ok { bc = compiled_byte_code; flags; lastIndex = 0; source = re }
+  | false -> Ok { bc = compiled_byte_code; flags; last_index = 0; source = re }
   | true ->
       let length = strlen error_msg in
       let error = Ctypes.string_from_ptr ~length error_msg in
@@ -138,10 +138,10 @@ let compile ~flags re =
         | unknown -> `Unknown unknown)
 
 let index result = match result with Ok result -> result.index | Error _ -> 0
-let lastIndex regexp = regexp.lastIndex
+let last_index regexp = regexp.last_index
 let source regexp = regexp.source
 let input result = match result with Ok result -> result.input | Error _ -> ""
-let set_last_index regexp idx = regexp.lastIndex <- idx
+let set_last_index regexp idx = regexp.last_index <- idx
 
 let captures result =
   match result with Ok result -> result.captures | Error _ -> [||]
@@ -268,26 +268,26 @@ let exec regexp input =
   in
   let buffer = Ctypes.CArray.start bufp in
 
-  let lastIndex =
+  let last_index =
     match global regexp || sticky regexp with
     | true ->
         if use_unicode then
           (* Convert UTF-8 byte position to UTF-16 code unit position *)
-          utf8_to_utf16_index input regexp.lastIndex
-        else regexp.lastIndex
+          utf8_to_utf16_index input regexp.last_index
+        else regexp.last_index
     | false -> 0
   in
 
-  (* Check if lastIndex is beyond string length (QuickJS does this check) *)
-  if lastIndex > matching_length then (
-    (* No match possible - reset lastIndex and return empty result *)
+  (* Check if last_index is beyond string length (QuickJS does this check) *)
+  if last_index > matching_length then (
+    (* No match possible - reset last_index and return empty result *)
     (match sticky regexp || global regexp with
-    | true -> regexp.lastIndex <- 0
+    | true -> regexp.last_index <- 0
     | false -> ());
     Ok { captures = [||]; input; index = 0; groups = [] })
   else
     let exec_result =
-      Libregexp.exec start_capture regexp.bc buffer lastIndex matching_length
+      Libregexp.exec start_capture regexp.bc buffer last_index matching_length
         shift Ctypes.null
     in
     (* Keep bufp alive until after lre_exec completes *)
@@ -330,8 +330,8 @@ let exec regexp input =
           in
           (* Store the captured substring *)
           substrings.(!i / 2) <- substring;
-          (* Update the lastIndex *)
-          regexp.lastIndex <- start_index + length;
+          (* Update the last_index *)
+          regexp.last_index <- start_index + length;
 
           (* if (\*group_name_ptr) { *)
           (match !group_name_ptr with
@@ -360,9 +360,9 @@ let exec regexp input =
         done;
         Ok { captures = substrings; input; index = !index; groups = !groups }
     | 0 ->
-        (* When there's no matches left, lastIndex goes back to 0 *)
+        (* When there's no matches left, last_index goes back to 0 *)
         (match sticky regexp || global regexp with
-        | true -> regexp.lastIndex <- 0
+        | true -> regexp.last_index <- 0
         | false -> ());
         Ok { captures = [||]; input; index = 0; groups = [] }
     | _ (* -1 *) -> Error "Error"

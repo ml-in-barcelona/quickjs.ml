@@ -189,7 +189,7 @@ let flag_y_lastindex () =
   RegExp.set_last_index re 1;
   assert_bool (RegExp.test re "bac") true;
   (* matches at position 1 *)
-  assert_int (RegExp.lastIndex re) 2
+  assert_int (RegExp.last_index re) 2
 
 (* Edge cases *)
 

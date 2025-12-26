@@ -639,7 +639,7 @@ module Prototype = struct
           else begin
             matches := caps.(0) :: !matches;
             if caps.(0) = "" then
-              RegExp.set_last_index re (RegExp.lastIndex re + 1)
+              RegExp.set_last_index re (RegExp.last_index re + 1)
           end
         done;
         Array.of_list (List.rev !matches)
@@ -672,7 +672,7 @@ module Prototype = struct
               }
               :: !matches;
             if caps.(0) = "" then
-              RegExp.set_last_index re (RegExp.lastIndex re + 1)
+              RegExp.set_last_index re (RegExp.last_index re + 1)
           end
         done;
         List.rev !matches

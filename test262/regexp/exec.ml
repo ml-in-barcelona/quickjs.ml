@@ -165,22 +165,22 @@ let a3_t1 () =
   let result1 = RegExp.exec re input in
   assert_array (RegExp.captures result1) [| "a" |];
   assert_int (RegExp.index result1) 1;
-  assert_int (RegExp.lastIndex re) 2;
+  assert_int (RegExp.last_index re) 2;
 
   let result2 = RegExp.exec re input in
   assert_array (RegExp.captures result2) [| "a" |];
   assert_int (RegExp.index result2) 3;
-  assert_int (RegExp.lastIndex re) 4;
+  assert_int (RegExp.last_index re) 4;
 
   let result3 = RegExp.exec re input in
   assert_array (RegExp.captures result3) [| "a" |];
   assert_int (RegExp.index result3) 5;
-  assert_int (RegExp.lastIndex re) 6;
+  assert_int (RegExp.last_index re) 6;
 
   (* No more matches - returns empty and resets lastIndex *)
   let result4 = RegExp.exec re input in
   assert_array (RegExp.captures result4) [||];
-  assert_int (RegExp.lastIndex re) 0
+  assert_int (RegExp.last_index re) 0
 
 let a3_t2 () =
   (* Without global flag - always starts from beginning *)
@@ -212,7 +212,7 @@ let a3_t4 () =
   RegExp.set_last_index re 100;
   let result = RegExp.exec re input in
   assert_array (RegExp.captures result) [||];
-  assert_int (RegExp.lastIndex re) 0
+  assert_int (RegExp.last_index re) 0
 
 let a3_t5 () =
   (* lastIndex with global flag iterating all matches *)
@@ -479,14 +479,14 @@ let lastindex_and_index () =
   let input = "hello world hello" in
   let result = RegExp.exec re input in
   assert_int (RegExp.index result) 0;
-  assert_int (RegExp.lastIndex re) 5;
+  assert_int (RegExp.last_index re) 5;
   let result = RegExp.exec re input in
   assert_int (RegExp.index result) 12;
-  assert_int (RegExp.lastIndex re) 17;
+  assert_int (RegExp.last_index re) 17;
   (* No more matches - resets lastIndex *)
   let result = RegExp.exec re input in
   assert_int (RegExp.index result) 0;
-  assert_int (RegExp.lastIndex re) 0
+  assert_int (RegExp.last_index re) 0
 
 let tests =
   [
