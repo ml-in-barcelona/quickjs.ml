@@ -19,7 +19,7 @@ val compile : flags:string -> string -> (t, compile_error) Stdlib.result
 (** Constructs a RegExp.t from a string describing a regex and their flags.
     Returns [Error (error_type, raw_message)] if compilation fails. *)
 
-val lastIndex : t -> int
+val last_index : t -> int
 (** returns the index where the next match will start its search *)
 
 val set_last_index : t -> int -> unit

@@ -1,5 +1,9 @@
 # Changes
 
+## Unreleased
+
+- Rename `RegExp.lastIndex` -> `RegExp.last_index`
+
 ## 0.4.1
 
 - Remove `uutf`
