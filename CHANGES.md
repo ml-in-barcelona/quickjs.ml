@@ -1,6 +1,6 @@
 # Changes
 
-## Unreleased
+## 0.4.2
 
 - Rename `RegExp.lastIndex` -> `RegExp.last_index`
 - Rename `RegExp.setLastIndex` -> `RegExp.set_last_index`
