@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Dtoa (docs.local.quickjs.c.Dtoa)</title><meta charset="utf-8"/><link rel="stylesheet" href="../../../../odoc.support/odoc.css"/><meta name="generator" content="odoc 3.1.0"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><script src="../../../../odoc.support/highlight.pack.js"></script><script>hljs.initHighlightingOnLoad();</script></head><body class="odoc"><nav class="odoc-nav"><a href="../index.html">Up</a> – <a href="../../../../../index.html">Index</a> &#x00BB; <a href="../../../../index.html">docs</a> &#x00BB; <a href="../../../index.html">local</a> &#x00BB; <a href="../../index.html">quickjs</a> &#x00BB; <a href="../index.html">c</a> &#x00BB; Dtoa</nav><header class="odoc-preamble"><h1>Module <code><span>Dtoa</span></code></h1><p>Low-level bindings to QuickJS's dtoa - Double to ASCII conversion</p><p>JavaScript-compatible floating point formatting (dtoa = Double TO Ascii). These are raw C bindings; for a higher-level API, use <code>Quickjs.Number</code>.</p></header><div class="odoc-content"><div class="odoc-spec"><div class="spec value anchored" id="val-max_len"><a href="#val-max_len" class="anchor"></a><code><span><span class="keyword">val</span> max_len : 
+  <span>float <span class="arrow">&#45;&gt;</span></span>
+  <span>int <span class="arrow">&#45;&gt;</span></span>
+  <span>int <span class="arrow">&#45;&gt;</span></span>
+  <span>int <span class="arrow">&#45;&gt;</span></span>
+  <span>int
+    <a href="../../bindings/Bindings/Libregexp__c_generated_functions__Function_description__Functions/index.html#type-return">Bindings.Libregexp__c_generated_functions__Function_description__Functions.return</a></span></span></code></div><div class="spec-doc"><p>Calculate maximum buffer size needed for <code>to_string</code></p></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-to_string"><a href="#val-to_string" class="anchor"></a><code><span><span class="keyword">val</span> to_string : 
+  <span><span>char <a href="../../../../findlib-0/ctypes/Ctypes_static/index.html#type-ptr">Ctypes_static.ptr</a></span> <span class="arrow">&#45;&gt;</span></span>
+  <span>float <span class="arrow">&#45;&gt;</span></span>
+  <span>int <span class="arrow">&#45;&gt;</span></span>
+  <span>int <span class="arrow">&#45;&gt;</span></span>
+  <span>int <span class="arrow">&#45;&gt;</span></span>
+  <span><span>unit <a href="../../../../findlib-0/ctypes/Ctypes_static/index.html#type-ptr">Ctypes_static.ptr</a></span> <span class="arrow">&#45;&gt;</span></span>
+  <span>int
+    <a href="../../bindings/Bindings/Libregexp__c_generated_functions__Function_description__Functions/index.html#type-return">Bindings.Libregexp__c_generated_functions__Function_description__Functions.return</a></span></span></code></div><div class="spec-doc"><p>Convert double to string with JS semantics. Flags: JS_DTOA_FORMAT_* | JS_DTOA_EXP_* | JS_DTOA_MINUS_ZERO Returns actual string length</p></div></div></div></body></html>
