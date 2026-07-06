@@ -139,6 +139,34 @@ let is_ascii s =
     String.prototype.trim, so there is a single source of truth. *)
 let is_whitespace code = Libunicode.is_space code
 
+(* Index unit conversions between UTF-8 byte offsets and UTF-16 code unit
+   indices. Useful at the boundary with byte-oriented code (e.g. consumers
+   slicing with Stdlib.String.sub around RegExp match indices). *)
+
+let utf16_index_of_byte s byte_index =
+  let len = Stdlib.String.length s in
+  let rec loop i u16 =
+    if i >= byte_index || i >= len then u16
+    else
+      let d = Stdlib.String.get_utf_8_uchar s i in
+      let code = Uchar.to_int (Uchar.utf_decode_uchar d) in
+      let units = if code >= 0x10000 then 2 else 1 in
+      loop (i + Uchar.utf_decode_length d) (u16 + units)
+  in
+  loop 0 0
+
+let byte_index_of_utf16 s utf16_index =
+  let len = Stdlib.String.length s in
+  let rec loop i u16 =
+    if u16 >= utf16_index || i >= len then i
+    else
+      let d = Stdlib.String.get_utf_8_uchar s i in
+      let code = Uchar.to_int (Uchar.utf_decode_uchar d) in
+      let units = if code >= 0x10000 then 2 else 1 in
+      loop (i + Uchar.utf_decode_length d) (u16 + units)
+  in
+  loop 0 0
+
 (** Convert array of UTF-16 code units back to UTF-8 string. Tail-recursive for
     stack safety. Handles surrogate pairs correctly. *)
 let from_utf16_array arr =

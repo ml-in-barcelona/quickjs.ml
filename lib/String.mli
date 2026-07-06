@@ -37,6 +37,19 @@ val is_valid_utf8 : string -> bool
     Note: All functions in this module handle invalid UTF-8 gracefully by
     replacing malformed sequences with U+FFFD (replacement character). *)
 
+val utf16_index_of_byte : string -> int -> int
+(** [utf16_index_of_byte s i] converts a UTF-8 byte offset in [s] into the
+    corresponding UTF-16 code unit index (the unit used by every index in this
+    module and in {!RegExp}). Offsets falling inside a multi-byte sequence map
+    to the index of that character; out-of-range offsets are clamped. Useful at
+    the boundary with byte-oriented code. *)
+
+val byte_index_of_utf16 : string -> int -> int
+(** [byte_index_of_utf16 s i] converts a UTF-16 code unit index into the
+    corresponding UTF-8 byte offset in [s]. Indices falling inside a surrogate
+    pair map to the byte offset of that character; out-of-range indices are
+    clamped. Inverse of {!utf16_index_of_byte}. *)
+
 module Prototype : sig
   (** String.prototype methods *)
 

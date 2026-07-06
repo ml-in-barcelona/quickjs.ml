@@ -79,6 +79,16 @@ typed, and consistently UTF-16-indexed like JavaScript.
   `int` return `None` instead of a corrupted number
 - **Breaking:** renamed `js_parse_options` to `js_number_options` (it
   implements `Number()` literal syntax, not parseFloat)
+- Added `parse_int_float`: parseInt with JavaScript's actual codomain
+  (floats), so values beyond OCaml's `int` range behave exactly like the
+  browser instead of returning `None`
+
+### String
+
+- Added `String.utf16_index_of_byte` / `String.byte_index_of_utf16` to
+  convert between UTF-8 byte offsets and the UTF-16 code unit indices used
+  by this library, for byte-oriented consumers slicing around RegExp match
+  indices (e.g. server-reason-react)
 
 ### Number
 

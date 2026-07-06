@@ -167,7 +167,7 @@ let parse_float_partial ?(options = default_parse_options) str =
    below bound is at most max_int; -bound itself is min_int). *)
 let int_bound = Stdlib.ldexp 1.0 (Sys.int_size - 1)
 
-let parse_int ?(radix = 0) str =
+let parse_int_float ?(radix = 0) str =
   (* Radix must be 0 (auto-detect, the JavaScript default) or 2-36 *)
   if radix <> 0 && (radix < 2 || radix > 36) then None
   else
@@ -182,9 +182,14 @@ let parse_int ?(radix = 0) str =
       let options = { default_parse_options with radix; int_only = true } in
       match atod_prefix ~options trimmed with
       | None -> None
-      | Some (result, _consumed) ->
-          if not (Float.is_finite result) then None
-          else if result >= int_bound || result < -.int_bound then
-            (* Out of OCaml int range: refuse to return a corrupted value *)
-            None
-          else Some (int_of_float result)
+      | Some (result, _consumed) -> Some result
+
+let parse_int ?radix str =
+  match parse_int_float ?radix str with
+  | None -> None
+  | Some result ->
+      if not (Float.is_finite result) then None
+      else if result >= int_bound || result < -.int_bound then
+        (* Out of OCaml int range: refuse to return a corrupted value *)
+        None
+      else Some (int_of_float result)

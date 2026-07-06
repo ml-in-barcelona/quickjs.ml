@@ -53,5 +53,13 @@ val parse_int : ?radix:int -> string -> int option
 
     Returns [None] when parsing fails, the radix is invalid, or the value does
     not fit in an OCaml [int] (JavaScript would return a lossy float in that
-    case; this API refuses instead of silently corrupting the value). Values
-    above 2^53 that do fit in [int] follow JavaScript's float precision. *)
+    case; this API refuses instead of silently corrupting the value — use
+    {!parse_int_float} for JavaScript's exact behavior). Values above 2^53 that
+    do fit in [int] follow JavaScript's float precision. *)
+
+val parse_int_float : ?radix:int -> string -> float option
+(** [parse_int_float ?radix str] is {!parse_int} returning the value as a float
+    — JavaScript's actual number type for parseInt. Values beyond OCaml's [int]
+    range (or infinite ones) are returned as floats with JavaScript's precision
+    instead of being refused, so [parse_int_float "99999999999999999999999999"]
+    is [Some 1e26], exactly like [parseInt] in a browser. *)

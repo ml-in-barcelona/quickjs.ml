@@ -235,6 +235,43 @@ let parse_int_unicode_whitespace () =
   (* NBSP before the number *)
   assert_int_opt (Global.parse_int "\xc2\xa042") (Some 42)
 
+let parse_int_float_js_codomain () =
+  (* parse_int_float follows JavaScript exactly: huge values come back as
+     lossy floats instead of None *)
+  assert_float_opt
+    (Global.parse_int_float "99999999999999999999999999")
+    (Some 1e26);
+  assert_float_opt (Global.parse_int_float "0x10") (Some 16.0);
+  assert_float_opt (Global.parse_int_float "abc") None
+
+(* ===================================================================
+   Index unit conversions (for byte-oriented consumers)
+   =================================================================== *)
+
+let index_unit_conversions () =
+  (* "ébé": é = 2 bytes / 1 UTF-16 unit *)
+  let s = "\xc3\xa9b\xc3\xa9" in
+  assert_int (String.utf16_index_of_byte s 0) 0;
+  assert_int (String.utf16_index_of_byte s 2) 1;
+  assert_int (String.utf16_index_of_byte s 3) 2;
+  assert_int (String.utf16_index_of_byte s 100) 3;
+  assert_int (String.byte_index_of_utf16 s 0) 0;
+  assert_int (String.byte_index_of_utf16 s 1) 2;
+  assert_int (String.byte_index_of_utf16 s 2) 3;
+  assert_int (String.byte_index_of_utf16 s 100) 5;
+  (* astral char: 😀 = 4 bytes / 2 UTF-16 units *)
+  let e = "a\xf0\x9f\x98\x80b" in
+  assert_int (String.byte_index_of_utf16 e 1) 1;
+  assert_int (String.byte_index_of_utf16 e 3) 5;
+  assert_int (String.utf16_index_of_byte e 5) 3;
+  (* round-trip a RegExp match index into a byte offset for Stdlib slicing *)
+  let re = regexp_compile "b" ~flags:"" in
+  match RegExp.exec re s with
+  | Some m ->
+      let byte_idx = String.byte_index_of_utf16 s m.RegExp.index in
+      assert_string (Stdlib.String.sub s 0 byte_idx) "\xc3\xa9"
+  | None -> Alcotest.fail "expected a match"
+
 (* ===================================================================
    Number formatting validation (used to abort the process)
    =================================================================== *)
@@ -346,6 +383,8 @@ let tests =
     test "parse_int: no 0b/0o" parse_int_no_binary_octal;
     test "parse_int: out of int range" parse_int_out_of_range;
     test "parse_int: unicode whitespace" parse_int_unicode_whitespace;
+    test "parse_int_float: JS codomain" parse_int_float_js_codomain;
+    test "string: index unit conversions" index_unit_conversions;
     test "number: Fixed 0 raises" fixed_zero_raises;
     test "number: radix+Fixed raises" radix_with_fixed_raises;
     test "number: JS digit ranges" js_digit_ranges;
