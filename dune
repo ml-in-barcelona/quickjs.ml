@@ -1,11 +1,11 @@
-(dirs lib test test262 quickjs benchmark docs c)
+(dirs lib test262 quickjs benchmark c)
 
 (documentation
  (package quickjs)
  (mld_files index))
 
 (library
- (name bindings)
+ (name quickjs_bindings)
  (public_name quickjs.bindings)
  (libraries integers)
  (foreign_archives quickjs/quickjs)

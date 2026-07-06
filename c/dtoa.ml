@@ -5,9 +5,9 @@
 
 (** Calculate maximum buffer size needed for [to_string] *)
 let max_len d radix n_digits flags =
-  Bindings.C.Functions.js_dtoa_max_len d radix n_digits flags
+  Quickjs_bindings.C.Functions.js_dtoa_max_len d radix n_digits flags
 
 (** Convert double to string with JS semantics. Flags: JS_DTOA_FORMAT_* |
     JS_DTOA_EXP_* | JS_DTOA_MINUS_ZERO Returns actual string length *)
 let to_string buf d radix n_digits flags tmp_mem =
-  Bindings.C.Functions.js_dtoa buf d radix n_digits flags tmp_mem
+  Quickjs_bindings.C.Functions.js_dtoa buf d radix n_digits flags tmp_mem
