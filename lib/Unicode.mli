@@ -19,8 +19,11 @@ val normalize : normalization -> string -> string option
 
     Example:
     {[
-      normalize NFC "café" (* composed form *) normalize NFD
-        "café" (* decomposed form *)
+      let composed = Unicode.normalize NFC "cafe\xcc\x81" in
+      (* composed = Some "café" (e + combining accent composed to é) *)
+      let decomposed = Unicode.normalize NFD "café" in
+      (* decomposed = Some "cafe\xcc\x81" *)
+      ignore (composed, decomposed)
     ]} *)
 
 (** {1 Case Conversion} *)

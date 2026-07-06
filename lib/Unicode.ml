@@ -1,3 +1,5 @@
+module Libunicode = Quickjs_c.Libunicode
+
 type normalization = NFC | NFD | NFKC | NFKD
 
 let normalization_to_int = function
@@ -37,21 +39,16 @@ let codepoints_to_utf8 cps =
 
 (* Character Classification *)
 
-let is_cased c =
-  let cp = Unsigned.UInt32.of_int (Uchar.to_int c) in
-  Libunicode.is_cased cp <> 0
+let is_cased c = Libunicode.is_cased (Unsigned.UInt32.of_int (Uchar.to_int c))
 
 let is_case_ignorable c =
-  let cp = Unsigned.UInt32.of_int (Uchar.to_int c) in
-  Libunicode.is_case_ignorable cp <> 0
+  Libunicode.is_case_ignorable (Unsigned.UInt32.of_int (Uchar.to_int c))
 
 let is_id_start c =
-  let cp = Unsigned.UInt32.of_int (Uchar.to_int c) in
-  Libunicode.is_id_start cp <> 0
+  Libunicode.is_id_start (Unsigned.UInt32.of_int (Uchar.to_int c))
 
 let is_id_continue c =
-  let cp = Unsigned.UInt32.of_int (Uchar.to_int c) in
-  Libunicode.is_id_continue cp <> 0
+  Libunicode.is_id_continue (Unsigned.UInt32.of_int (Uchar.to_int c))
 
 let is_whitespace c =
   (* lre_is_space handles both ASCII and non-ASCII whitespace *)
@@ -76,22 +73,58 @@ let lowercase_char c = case_conv_char 1 c
 
 (* Case Conversion - Strings *)
 
+let is_cased_cp cp = Libunicode.is_cased (Unsigned.UInt32.of_int cp)
+
+let is_case_ignorable_cp cp =
+  Libunicode.is_case_ignorable (Unsigned.UInt32.of_int cp)
+
+(* Unicode SpecialCasing Final_Sigma condition: the sigma at [pos] is
+   preceded by a cased character (skipping case-ignorable ones) and not
+   followed by one. Port of test_final_sigma in quickjs.c. *)
+let is_final_sigma cps pos =
+  let len = Array.length cps in
+  (* before: skip case-ignorable characters and require a cased one *)
+  let rec before i =
+    if i < 0 then false
+    else if is_case_ignorable_cp cps.(i) then before (i - 1)
+    else is_cased_cp cps.(i)
+  in
+  (* after: skip case-ignorable characters and require no cased one *)
+  let rec after i =
+    if i >= len then true
+    else if is_case_ignorable_cp cps.(i) then after (i + 1)
+    else not (is_cased_cp cps.(i))
+  in
+  before (pos - 1) && after (pos + 1)
+
+let capital_sigma = 0x3A3
+let final_small_sigma = 0x3C2
+
 let case_conv_string conv_type s =
   let cps = utf8_to_codepoints s in
   let res = Ctypes.CArray.make Ctypes.uint32_t lre_cc_res_len_max in
   let res_ptr = Ctypes.CArray.start res in
   let result = Stdlib.Buffer.create (Stdlib.String.length s * 2) in
-  Array.iter
-    (fun cp_int ->
-      let cp = Unsigned.UInt32.of_int cp_int in
-      let count = Libunicode.case_conv res_ptr cp conv_type in
-      for i = 0 to count - 1 do
-        let code = Unsigned.UInt32.to_int (Ctypes.CArray.get res i) in
-        let u =
-          if code >= 0 && code <= 0x10FFFF then Uchar.of_int code else Uchar.rep
+  let add_code code =
+    let u =
+      if code >= 0 && code <= 0x10FFFF then Uchar.of_int code else Uchar.rep
+    in
+    Stdlib.Buffer.add_utf_8_uchar result u
+  in
+  Array.iteri
+    (fun i cp_int ->
+      (* Context-sensitive lowercase of capital sigma at the end of a word
+         (same special case as js_string_toLowerCase in quickjs.c) *)
+      if conv_type = 1 && cp_int = capital_sigma && is_final_sigma cps i then
+        add_code final_small_sigma
+      else begin
+        let count =
+          Libunicode.case_conv res_ptr (Unsigned.UInt32.of_int cp_int) conv_type
         in
-        Stdlib.Buffer.add_utf_8_uchar result u
-      done)
+        for j = 0 to count - 1 do
+          add_code (Unsigned.UInt32.to_int (Ctypes.CArray.get res j))
+        done
+      end)
     cps;
   Stdlib.Buffer.contents result
 
@@ -102,8 +135,7 @@ let lowercase s = case_conv_string 1 s
 
 let canonicalize ?(unicode = true) c =
   let cp = Unsigned.UInt32.of_int (Uchar.to_int c) in
-  let is_unicode = if unicode then 1 else 0 in
-  let result = Libunicode.canonicalize cp is_unicode in
+  let result = Libunicode.canonicalize cp unicode in
   if result >= 0 && result <= 0x10FFFF then Uchar.of_int result else c
 
 (* Normalization *)
