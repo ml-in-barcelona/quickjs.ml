@@ -56,4 +56,6 @@ let () =
       ("String.prototype.replaceAll", String.Prototype.Replace_all.tests);
       ("String.prototype.split", String.Prototype.Split.tests);
       ("String.prototype.search", String.Prototype.Search.tests);
+      (* Audit regression tests *)
+      ("Regressions", Regressions.tests);
     ]

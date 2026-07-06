@@ -2,28 +2,7 @@
 
 module RegExp = Quickjs.RegExp
 
-(** Expected failures - tests that we know don't pass yet but want to track *)
-let expected_failures : string list =
-  [ (* Add test IDs here as we discover failures *)
-    (* Example: "parseInt.S15.1.2.2_A2_T10_U180E" for Mongolian vowel separator *) ]
-
-(** Check if a test is expected to fail *)
-let is_expected_failure test_id = List.mem test_id expected_failures
-
-(** Create a test case that handles expected failures *)
-let test ?(expected_fail = false) title fn =
-  if expected_fail then
-    Alcotest.test_case (title ^ " [EXPECTED FAIL]") `Quick (fun () ->
-        try
-          fn ();
-          Alcotest.fail
-            "Expected failure but test passed - remove from expected_failures!"
-        with _ -> ())
-  else Alcotest.test_case title `Quick fn
-
-(** Create a test case by ID, auto-detecting expected failures *)
-let test_by_id id title fn =
-  test ~expected_fail:(is_expected_failure id) title fn
+let test title fn = Alcotest.test_case title `Quick fn
 
 (* ===== Assertion helpers ===== *)
 
@@ -82,6 +61,55 @@ let regexp_no_compile re ~flags =
       Alcotest.fail "This regex should fail to compile, it succeeded"
   | Error error -> error
 
+(* ===== RegExp match assertions ===== *)
+
+(** Assert that a match happened and that all captures participated with the
+    given values. Group 0 is the full match. *)
+let assert_match (result : RegExp.match_result option) expected =
+  match result with
+  | None ->
+      Alcotest.fail
+        (Printf.sprintf "expected a match with %d captures, got no match"
+           (Array.length expected))
+  | Some m ->
+      Alcotest.(check (array (option string)))
+        "captures should be equal"
+        (Array.map (fun c -> Some c) expected)
+        m.RegExp.captures
+
+(** Assert captures including non-participating groups (None). *)
+let assert_captures (result : RegExp.match_result option) expected =
+  match result with
+  | None -> Alcotest.fail "expected a match, got no match"
+  | Some m ->
+      Alcotest.(check (array (option string)))
+        "captures should be equal" expected m.RegExp.captures
+
+let assert_no_match (result : RegExp.match_result option) =
+  match result with
+  | None -> ()
+  | Some m ->
+      Alcotest.fail
+        (Printf.sprintf "expected no match, but matched %S at index %d"
+           (match m.RegExp.captures.(0) with Some s -> s | None -> "")
+           m.RegExp.index)
+
+(** Assert the UTF-16 index of a match. *)
+let assert_match_index (result : RegExp.match_result option) expected =
+  match result with
+  | None -> Alcotest.fail "expected a match, got no match"
+  | Some m ->
+      Alcotest.(check int) "index should be equal" expected m.RegExp.index
+
+(** Assert the value of a named group ([None] = absent or non-participating). *)
+let assert_group (result : RegExp.match_result option) name expected =
+  match result with
+  | None -> Alcotest.fail "expected a match, got no match"
+  | Some m ->
+      Alcotest.(check (option string))
+        (Printf.sprintf "group %S should be equal" name)
+        expected (RegExp.group name m)
+
 (* ===== RegExp error assertions ===== *)
 
 let assert_compile_error ~expected actual =
@@ -119,6 +147,14 @@ let assert_malformed_unicode error =
   | other ->
       Alcotest.fail
         (Printf.sprintf "Expected `Malformed_unicode_char but got %s"
+           (RegExp.compile_error_to_string other))
+
+let assert_invalid_flags error =
+  match error with
+  | `Invalid_flags _ -> ()
+  | other ->
+      Alcotest.fail
+        (Printf.sprintf "Expected `Invalid_flags but got %s"
            (RegExp.compile_error_to_string other))
 
 let string_contains ~needle haystack =

@@ -55,9 +55,9 @@ $ make test
 ```
 If you add new functionality, adding tests is highly encouraged.
 
-To run an isolated case, you can run the [./demo/demo.ml](./demo/demo.ml) executable with:
+To benchmark your changes, run:
 ```sh
-$ make demo
+$ make bench
 ```
 
 ## 3. Code Style and Guidelines

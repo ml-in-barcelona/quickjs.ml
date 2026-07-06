@@ -14,6 +14,8 @@
     Use [is_valid_utf8] to check strings before processing if strict validation
     is required. *)
 
+module Libunicode = Quickjs_c.Libunicode
+
 (* Re-export normalization type from Unicode *)
 type normalization = Unicode.normalization = NFC | NFD | NFKC | NFKD
 
@@ -132,22 +134,38 @@ let is_ascii s =
   in
   check 0
 
-(** JavaScript whitespace characters (per ECMA-262). Includes ASCII whitespace,
-    Unicode spaces, and line terminators. *)
-let is_whitespace code =
-  code = 0x20 (* space *) || code = 0x09 (* tab *)
-  || code = 0x0A (* line feed *)
-  || code = 0x0B (* vertical tab *)
-  || code = 0x0C (* form feed *)
-  || code = 0x0D (* carriage return *)
-  || code = 0xA0 (* non-breaking space *)
-  || code = 0xFEFF (* BOM / zero-width no-break space *)
-  || (code >= 0x2000 && code <= 0x200A) (* various Unicode spaces *)
-  || code = 0x2028 (* line separator *)
-  || code = 0x2029 (* paragraph separator *)
-  || code = 0x202F (* narrow no-break space *)
-  || code = 0x205F (* medium mathematical space *)
-  || code = 0x3000 (* ideographic space *)
+(** JavaScript whitespace (ECMA-262 WhiteSpace or LineTerminator). Delegates to
+    libunicode's lre_is_space, the same predicate QuickJS uses for
+    String.prototype.trim, so there is a single source of truth. *)
+let is_whitespace code = Libunicode.is_space code
+
+(* Index unit conversions between UTF-8 byte offsets and UTF-16 code unit
+   indices. Useful at the boundary with byte-oriented code (e.g. consumers
+   slicing with Stdlib.String.sub around RegExp match indices). *)
+
+let utf16_index_of_byte s byte_index =
+  let len = Stdlib.String.length s in
+  let rec loop i u16 =
+    if i >= byte_index || i >= len then u16
+    else
+      let d = Stdlib.String.get_utf_8_uchar s i in
+      let code = Uchar.to_int (Uchar.utf_decode_uchar d) in
+      let units = if code >= 0x10000 then 2 else 1 in
+      loop (i + Uchar.utf_decode_length d) (u16 + units)
+  in
+  loop 0 0
+
+let byte_index_of_utf16 s utf16_index =
+  let len = Stdlib.String.length s in
+  let rec loop i u16 =
+    if u16 >= utf16_index || i >= len then i
+    else
+      let d = Stdlib.String.get_utf_8_uchar s i in
+      let code = Uchar.to_int (Uchar.utf_decode_uchar d) in
+      let units = if code >= 0x10000 then 2 else 1 in
+      loop (i + Uchar.utf_decode_length d) (u16 + units)
+  in
+  loop 0 0
 
 (** Convert array of UTF-16 code units back to UTF-8 string. Tail-recursive for
     stack safety. Handles surrogate pairs correctly. *)
@@ -453,8 +471,9 @@ module Prototype = struct
     let s_arr = to_utf16_array s in
     let search_len = Array.length search_arr in
     let s_len = Array.length s_arr in
-    let pos = max 0 pos in
-    if pos + search_len > s_len then false
+    let pos = clamp pos 0 s_len in
+    (* compare via subtraction to avoid int overflow on huge [pos] *)
+    if search_len > s_len - pos then false
     else
       let matches = ref true in
       let i = ref 0 in
@@ -609,90 +628,82 @@ module Prototype = struct
       done;
       Stdlib.Buffer.contents buf
 
-  (** match - find first match *)
+  (* ===== RegExp-based methods =====
+
+     These methods compile their pattern argument on each call. An invalid
+     pattern raises Invalid_argument, mirroring the SyntaxError JavaScript
+     throws for invalid regular expression literals. *)
+
+  let compile_exn ~fn ~flags pattern =
+    match RegExp.compile ~flags pattern with
+    | Ok re -> re
+    | Error error ->
+        invalid_arg
+          (Printf.sprintf
+             "String.Prototype.%s: invalid regular expression /%s/: %s" fn
+             pattern
+             (RegExp.compile_error_to_string error))
+
+  let full_match (m : RegExp.match_result) =
+    match m.RegExp.captures.(0) with Some s -> s | None -> ""
+
+  (* Fold [f] over every match of a global regexp, advancing past empty
+     matches so iteration always terminates. *)
+  let fold_global_matches re s ~init ~f =
+    let rec loop acc =
+      match RegExp.exec re s with
+      | None -> acc
+      | Some m ->
+          let acc = f acc m in
+          if full_match m = "" then
+            RegExp.set_last_index re (RegExp.last_index re + 1);
+          loop acc
+    in
+    loop init
+
+  (** match - find first match. Equivalent to JavaScript's
+      String.prototype.match() without the global flag. *)
   let match_ pattern s =
-    match RegExp.compile ~flags:"" pattern with
-    | Error _ -> None
-    | Ok re ->
-        let result = RegExp.exec re s in
-        let caps = RegExp.captures result in
-        if Array.length caps = 0 then None else Some caps
+    let re = compile_exn ~fn:"match_" ~flags:"" pattern in
+    RegExp.exec re s
 
   let match_flags pattern flags s =
-    match RegExp.compile ~flags pattern with
-    | Error _ -> None
-    | Ok re ->
-        let result = RegExp.exec re s in
-        let caps = RegExp.captures result in
-        if Array.length caps = 0 then None else Some caps
+    if Stdlib.String.contains flags 'g' then
+      invalid_arg
+        "String.Prototype.match_flags: the 'g' flag returns multiple matches; \
+         use match_global or match_all instead"
+    else
+      let re = compile_exn ~fn:"match_flags" ~flags pattern in
+      RegExp.exec re s
 
-  let match_global pattern s =
-    match RegExp.compile ~flags:"g" pattern with
-    | Error _ -> [||]
-    | Ok re ->
-        let matches = ref [] in
-        let continue = ref true in
-        while !continue do
-          let result = RegExp.exec re s in
-          let caps = RegExp.captures result in
-          if Array.length caps = 0 then continue := false
-          else begin
-            matches := caps.(0) :: !matches;
-            if caps.(0) = "" then
-              RegExp.set_last_index re (RegExp.last_index re + 1)
-          end
-        done;
-        Array.of_list (List.rev !matches)
+  (** matchGlobal - all full matches, like JavaScript's match() with the global
+      flag (which returns full matches only, no capture groups). Returns [||]
+      when there is no match (JavaScript returns null). *)
+  let match_global ?(flags = "") pattern s =
+    let flags =
+      if Stdlib.String.contains flags 'g' then flags else flags ^ "g"
+    in
+    let re = compile_exn ~fn:"match_global" ~flags pattern in
+    fold_global_matches re s ~init:[] ~f:(fun acc m -> full_match m :: acc)
+    |> List.rev |> Array.of_list
 
-  type match_result = {
-    full_match : string;
-    captures : string array;
-    groups : (string * string) list;
-    index : int;
-  }
-  (** matchAll result type *)
+  (** matchAll - all matches with captures, groups and indices. Equivalent to
+      JavaScript's String.prototype.matchAll(). *)
+  let match_all ?(flags = "") pattern s =
+    let flags =
+      if Stdlib.String.contains flags 'g' then flags else flags ^ "g"
+    in
+    let re = compile_exn ~fn:"match_all" ~flags pattern in
+    fold_global_matches re s ~init:[] ~f:(fun acc m -> m :: acc) |> List.rev
 
-  let match_all pattern s =
-    match RegExp.compile ~flags:"g" pattern with
-    | Error _ -> []
-    | Ok re ->
-        let matches = ref [] in
-        let continue = ref true in
-        while !continue do
-          let result = RegExp.exec re s in
-          let caps = RegExp.captures result in
-          if Array.length caps = 0 then continue := false
-          else begin
-            matches :=
-              {
-                full_match = caps.(0);
-                captures = caps;
-                groups = RegExp.groups result;
-                index = RegExp.index result;
-              }
-              :: !matches;
-            if caps.(0) = "" then
-              RegExp.set_last_index re (RegExp.last_index re + 1)
-          end
-        done;
-        List.rev !matches
-
-  (** search - find index of first match *)
+  (** search - find UTF-16 index of first match *)
   let search pattern s =
-    match RegExp.compile ~flags:"" pattern with
-    | Error _ -> -1
-    | Ok re ->
-        let result = RegExp.exec re s in
-        let caps = RegExp.captures result in
-        if Array.length caps = 0 then -1 else RegExp.index result
+    let re = compile_exn ~fn:"search" ~flags:"" pattern in
+    match RegExp.exec re s with Some m -> m.RegExp.index | None -> -1
 
   let search_flags pattern flags s =
-    match RegExp.compile ~flags pattern with
-    | Error _ -> -1
-    | Ok re ->
-        let result = RegExp.exec re s in
-        let caps = RegExp.captures result in
-        if Array.length caps = 0 then -1 else RegExp.index result
+    let re = compile_exn ~fn:"search_flags" ~flags pattern in
+    match RegExp.exec re s with Some m -> m.RegExp.index | None -> -1
 
   (** Process JavaScript replacement patterns in a replacement string.
       - $$ -> literal $
@@ -773,6 +784,13 @@ module Prototype = struct
       done;
       Stdlib.Buffer.contents buf
 
+  (* Captures for process_replacement: JavaScript substitutes the empty
+     string for capture groups that did not participate. *)
+  let replacement_captures (m : RegExp.match_result) =
+    Array.map
+      (fun capture -> match capture with Some s -> s | None -> "")
+      m.RegExp.captures
+
   (** replace - replace first occurrence *)
   let replace search replacement s =
     let idx = index_of search s in
@@ -787,79 +805,47 @@ module Prototype = struct
       in
       before_match ^ processed ^ after_match
 
-  let replace_regex pattern replacement s =
-    match RegExp.compile ~flags:"" pattern with
-    | Error _ -> s
-    | Ok re ->
-        let result = RegExp.exec re s in
-        let caps = RegExp.captures result in
-        if Array.length caps = 0 then s
-        else
-          let match_str = caps.(0) in
-          let idx = RegExp.index result in
-          let match_len = utf16_length match_str in
-          let before_match = slice ~start:0 ~end_:idx s in
-          let after_match = slice_from (idx + match_len) s in
-          let processed =
-            process_replacement ~replacement ~matched:match_str ~before_match
-              ~after_match ~captures:caps
-          in
-          before_match ^ processed ^ after_match
+  let replace_regex_with_flags ~fn pattern flags replacement s =
+    let re = compile_exn ~fn ~flags pattern in
+    match RegExp.exec re s with
+    | None -> s
+    | Some m ->
+        let match_str = full_match m in
+        let idx = m.RegExp.index in
+        let match_len = utf16_length match_str in
+        let before_match = slice ~start:0 ~end_:idx s in
+        let after_match = slice_from (idx + match_len) s in
+        let processed =
+          process_replacement ~replacement ~matched:match_str ~before_match
+            ~after_match ~captures:(replacement_captures m)
+        in
+        before_match ^ processed ^ after_match
 
-  let replace_regex_global pattern replacement s =
-    match RegExp.compile ~flags:"g" pattern with
-    | Error _ -> s
-    | Ok re ->
-        let current = ref s in
-        let last_index = ref 0 in
-        let continue = ref true in
-        let parts = ref [] in
-        RegExp.set_last_index re 0;
-        while !continue do
-          let match_result = RegExp.exec re !current in
-          let caps = RegExp.captures match_result in
-          if Array.length caps = 0 then continue := false
-          else begin
-            let match_str = caps.(0) in
-            let idx = RegExp.index match_result in
-            let before_match = slice ~start:!last_index ~end_:idx !current in
-            let match_end = idx + utf16_length match_str in
-            let after_match = slice_from match_end !current in
-            let processed =
-              process_replacement ~replacement ~matched:match_str
-                ~before_match:(slice ~start:0 ~end_:idx !current)
-                ~after_match ~captures:caps
-            in
-            parts := processed :: before_match :: !parts;
-            last_index := match_end;
-            if match_str = "" then begin
-              last_index := !last_index + 1;
-              RegExp.set_last_index re !last_index
-            end
-          end
-        done;
-        let remaining = slice_from !last_index !current in
-        parts := remaining :: !parts;
-        Stdlib.String.concat "" (List.rev !parts)
+  let replace_regex pattern replacement s =
+    replace_regex_with_flags ~fn:"replace_regex" pattern "" replacement s
 
   let replace_regex_flags pattern flags replacement s =
-    match RegExp.compile ~flags pattern with
-    | Error _ -> s
-    | Ok re ->
-        let result = RegExp.exec re s in
-        let caps = RegExp.captures result in
-        if Array.length caps = 0 then s
-        else
-          let match_str = caps.(0) in
-          let idx = RegExp.index result in
-          let match_len = utf16_length match_str in
-          let before_match = slice ~start:0 ~end_:idx s in
-          let after_match = slice_from (idx + match_len) s in
+    replace_regex_with_flags ~fn:"replace_regex_flags" pattern flags replacement
+      s
+
+  let replace_regex_global pattern replacement s =
+    let re = compile_exn ~fn:"replace_regex_global" ~flags:"g" pattern in
+    let parts, last_end =
+      fold_global_matches re s ~init:([], 0) ~f:(fun (parts, last_end) m ->
+          let match_str = full_match m in
+          let idx = m.RegExp.index in
+          let match_end = idx + utf16_length match_str in
+          let before = slice ~start:last_end ~end_:idx s in
           let processed =
-            process_replacement ~replacement ~matched:match_str ~before_match
-              ~after_match ~captures:caps
+            process_replacement ~replacement ~matched:match_str
+              ~before_match:(slice ~start:0 ~end_:idx s)
+              ~after_match:(slice_from match_end s)
+              ~captures:(replacement_captures m)
           in
-          before_match ^ processed ^ after_match
+          (processed :: before :: parts, match_end))
+    in
+    let parts = slice_from last_end s :: parts in
+    Stdlib.String.concat "" (List.rev parts)
 
   (** replaceAll - replace all occurrences *)
   let replace_all search replacement s =
@@ -895,23 +881,22 @@ module Prototype = struct
     end
     else
       let search_len = utf16_length search in
-      let rec loop current_s acc_parts original_s =
-        let idx = index_of search current_s in
-        if idx < 0 then
-          Stdlib.String.concat "" (List.rev (current_s :: acc_parts))
+      (* [pos] is a UTF-16 position in the original string; $` and $' always
+         refer to the original string, per the JavaScript spec *)
+      let rec loop pos acc =
+        let idx = index_of_from search pos s in
+        if idx < 0 then List.rev (slice_from pos s :: acc)
         else
-          let before_match = slice ~start:0 ~end_:idx current_s in
-          let after_match = slice_from (idx + search_len) current_s in
+          let before = slice ~start:pos ~end_:idx s in
           let processed =
             process_replacement ~replacement ~matched:search
-              ~before_match:
-                ( acc_parts |> List.rev |> Stdlib.String.concat ""
-                |> fun prefix -> prefix ^ before_match )
-              ~after_match ~captures:[| search |]
+              ~before_match:(slice ~start:0 ~end_:idx s)
+              ~after_match:(slice_from (idx + search_len) s)
+              ~captures:[| search |]
           in
-          loop after_match (processed :: before_match :: acc_parts) original_s
+          loop (idx + search_len) (processed :: before :: acc)
       in
-      loop s [] s
+      Stdlib.String.concat "" (loop 0 [])
 
   let replace_all_regex pattern replacement s =
     replace_regex_global pattern replacement s
@@ -958,36 +943,55 @@ module Prototype = struct
       loop s [] 0
     end
 
-  let split_regex pattern s =
-    match RegExp.compile ~flags:"g" pattern with
-    | Error _ -> [| s |]
-    | Ok re ->
-        let parts = ref [] in
-        let last_index = ref 0 in
-        let continue = ref true in
-        while !continue do
-          let result = RegExp.exec re s in
-          let caps = RegExp.captures result in
-          if Array.length caps = 0 then continue := false
+  (** split by regex pattern. Capture groups are spliced into the result (as in
+      JavaScript); groups that did not participate contribute [""]. *)
+  let split_regex_nonempty re s =
+    let s_len = utf16_length s in
+    let parts = ref [] in
+    let last_end = ref 0 in
+    let continue = ref true in
+    while !continue do
+      match RegExp.exec re s with
+      | None -> continue := false
+      | Some m ->
+          let match_str = full_match m in
+          let idx = m.RegExp.index in
+          let match_end = idx + utf16_length match_str in
+          if idx >= s_len then
+            (* Per the spec's SplitMatch loop, positions beyond the last
+               character are never attempted *)
+            continue := false
           else begin
-            let match_str = caps.(0) in
-            let idx = RegExp.index result in
-            let before = slice ~start:!last_index ~end_:idx s in
-            parts := before :: !parts;
-            (* Add captured groups *)
-            for i = 1 to Array.length caps - 1 do
-              parts := caps.(i) :: !parts
-            done;
-            last_index := idx + utf16_length match_str;
-            if match_str = "" then begin
-              last_index := !last_index + 1;
-              RegExp.set_last_index re !last_index
-            end
+            if match_end = !last_end then
+              (* Empty match adjacent to the previous split point: skip it
+                 (ECMA-262 SplitMatch: only advancing matches split) *)
+              ()
+            else begin
+              parts := slice ~start:!last_end ~end_:idx s :: !parts;
+              for i = 1 to Array.length m.RegExp.captures - 1 do
+                let capture =
+                  match m.RegExp.captures.(i) with Some c -> c | None -> ""
+                in
+                parts := capture :: !parts
+              done;
+              last_end := match_end
+            end;
+            if match_str = "" then
+              RegExp.set_last_index re (RegExp.last_index re + 1)
           end
-        done;
-        let remaining = slice_from !last_index s in
-        parts := remaining :: !parts;
-        Array.of_list (List.rev !parts)
+    done;
+    parts := slice_from !last_end s :: !parts;
+    Array.of_list (List.rev !parts)
+
+  let split_regex pattern s =
+    let re = compile_exn ~fn:"split_regex" ~flags:"g" pattern in
+    if s = "" then
+      (* Per spec: splitting the empty string yields [] when the separator
+         matches it, and [""] otherwise *)
+      match RegExp.exec re s with
+      | Some _ -> [||]
+      | None -> [| s |]
+    else split_regex_nonempty re s
 end
 
 (* Character-level case conversion *)

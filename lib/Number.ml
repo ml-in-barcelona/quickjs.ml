@@ -3,20 +3,27 @@
     This module mirrors the JavaScript Number API with prototype methods for
     number-to-string conversion. *)
 
+module Dtoa = Quickjs_c.Dtoa
+module Cutils = Quickjs_c.Cutils
+
 (* JS_DTOA flags from dtoa.h *)
 let js_dtoa_format_free = 0
 let js_dtoa_format_fixed = 1
 let js_dtoa_format_frac = 2
-let _js_dtoa_format_mask = 3
 let js_dtoa_exp_auto = 0
 let js_dtoa_exp_enabled = 1 lsl 2
 let js_dtoa_exp_disabled = 2 lsl 2
 let js_dtoa_minus_zero = 1 lsl 4
 
-(* Maximum digits supported *)
+(* JS_DTOA_MAX_DIGITS from dtoa.h - hard limit of the C implementation *)
 let max_digits = 101
 
-(* Maximum buffer size for integer conversions *)
+(* JavaScript's RangeError limit for toFixed/toPrecision/toExponential *)
+let js_max_digits = 100
+
+(* Maximum buffer size for integer conversions: worst case is
+   i64toa_radix(Int64.min_int, 2) = '-' plus 64 binary digits (the functions
+   do not NUL-terminate) *)
 let max_int_buf_size = 65
 
 (** Number of digits to use *)
@@ -46,11 +53,35 @@ let validate_radix radix =
     invalid_arg
       (Printf.sprintf "Number: radix must be between 2 and 36, got %d" radix)
 
-let validate_digits n =
-  if n < 0 || n > max_digits then
-    invalid_arg
-      (Printf.sprintf "Number: n_digits must be between 0 and %d, got %d"
-         max_digits n)
+(* Validation mirrors the constraints js_dtoa asserts on (dtoa.h/dtoa.c):
+   - FIXED requires 1 <= n_digits <= 101, FRAC requires 0 <= n_digits <= 101
+   - radix != 10 is only supported with the FREE format
+   Violating them would abort the process inside the C library, so they are
+   rejected here with Invalid_argument instead. *)
+let validate_options options =
+  validate_radix options.radix;
+  (match options.format with
+  | Free -> ()
+  | Fixed n ->
+      if n < 1 || n > max_digits then
+        invalid_arg
+          (Printf.sprintf
+             "Number: Fixed digits must be between 1 and %d, got %d" max_digits
+             n)
+  | Fractional n ->
+      if n < 0 || n > max_digits then
+        invalid_arg
+          (Printf.sprintf
+             "Number: Fractional digits must be between 0 and %d, got %d"
+             max_digits n));
+  match (options.format, options.radix) with
+  | Free, _ | _, 10 -> ()
+  | (Fixed _ | Fractional _), radix ->
+      invalid_arg
+        (Printf.sprintf
+           "Number: radix %d is only supported with the Free format (the C \
+            implementation restricts fixed/fractional formatting to radix 10)"
+           radix)
 
 let options_to_flags options =
   let format_flag =
@@ -75,9 +106,8 @@ let n_digits_from_format format =
 
 module Prototype = struct
   let to_string ?(options = default_options) d =
-    validate_radix options.radix;
+    validate_options options;
     let n_digits = n_digits_from_format options.format in
-    validate_digits n_digits;
     let flags = options_to_flags options in
     let max_len = Dtoa.max_len d options.radix n_digits flags in
     let buf = Ctypes.allocate_n Ctypes.char ~count:(max_len + 1) in
@@ -89,7 +119,11 @@ module Prototype = struct
     Ctypes.string_from_ptr buf ~length:actual_len
 
   let to_fixed n d =
-    validate_digits n;
+    if n < 0 || n > js_max_digits then
+      invalid_arg
+        (Printf.sprintf
+           "Number.to_fixed: digits must be between 0 and %d, got %d"
+           js_max_digits n);
     to_string
       ~options:
         {
@@ -101,11 +135,11 @@ module Prototype = struct
       d
 
   let to_precision n d =
-    if n < 1 || n > max_digits then
+    if n < 1 || n > js_max_digits then
       invalid_arg
         (Printf.sprintf
            "Number.to_precision: precision must be between 1 and %d, got %d"
-           max_digits n);
+           js_max_digits n);
     to_string
       ~options:
         {
@@ -117,7 +151,11 @@ module Prototype = struct
       d
 
   let to_exponential n d =
-    validate_digits n;
+    if n < 0 || n > js_max_digits then
+      invalid_arg
+        (Printf.sprintf
+           "Number.to_exponential: digits must be between 0 and %d, got %d"
+           js_max_digits n);
     to_string
       ~options:
         {

@@ -1,10 +1,10 @@
 {1 quickjs}
 
-[quickjs.ml] is a set of OCaml bindings to some libraries from {{:https://bellard.org/quickjs}QuickJS}, a small and embeddable JavaScript engine that implements the ES2020 specification including modules, asynchronous generators, proxies and BigInt.
+[quickjs.ml] is a set of OCaml bindings to some libraries from {{:https://quickjs-ng.github.io/quickjs/}quickjs-ng}, a small and embeddable JavaScript engine that aims to support the latest ECMAScript specification.
 
 This project exposes two libraries:
 
-- {{!page:c}quickjs.c}: Low-level OCaml bindings to QuickJS C functions ({{!module:Libregexp}Libregexp}, {{!module:Libunicode}Libunicode}, {{!module:Dtoa}Dtoa}, {{!module:Atod}Atod}, and {{!module:Cutils}Cutils})
+- [quickjs.c]: Low-level OCaml bindings to QuickJS C functions ({{!module:Quickjs_c.Libregexp}Libregexp}, {{!module:Quickjs_c.Libunicode}Libunicode}, {{!module:Quickjs_c.Dtoa}Dtoa}, {{!module:Quickjs_c.Atod}Atod}, and {{!module:Quickjs_c.Cutils}Cutils})
 
 - {{!module:Quickjs}quickjs}: A high-level API that mirrors JavaScript's built-in objects and methods. Modules include {{!module:Quickjs.RegExp}RegExp}, {{!module:Quickjs.String}String}, {{!module:Quickjs.Number}Number}, and {{!module:Quickjs.Global}Global}.
 
@@ -18,32 +18,42 @@ We are translating {{:https://github.com/tc39/test262}TC39/test262} tests into O
 
 {2 Usage}
 
+All string indices (match positions, [last_index], [String.Prototype] methods) are UTF-16 code units, exactly like JavaScript.
+
 {[
 open Quickjs
 
-(* RegExp - JavaScript-compatible regular expressions *)
-let re = RegExp.compile ~flags:"g" "(?<word>\\w+)" |> Result.get_ok in
-let result = RegExp.exec re "hello world" in
-RegExp.captures result (* [| "hello"; "hello" |] *)
-RegExp.group "word" result (* Some "hello" *)
-RegExp.exec re "hello world" (* next match: "world" *)
+let () =
+  (* RegExp - JavaScript-compatible regular expressions *)
+  let re = RegExp.compile ~flags:"g" "(?<word>\\w+)" |> Result.get_ok in
+  (match RegExp.exec re "hello world" with
+  | Some m ->
+      assert (m.captures = [| Some "hello"; Some "hello" |]);
+      assert (RegExp.group "word" m = Some "hello");
+      assert (m.index = 0)
+  | None -> assert false);
+  (* the global flag advances last_index: the next exec finds "world" *)
+  (match RegExp.exec re "hello world" with
+  | Some m -> assert (RegExp.group "word" m = Some "world")
+  | None -> assert false);
 
-(* Number.Prototype - JavaScript-identical number formatting *)
-Number.Prototype.to_string 0.1 (* "0.1" - no floating point artifacts *)
-Number.Prototype.to_fixed 2 3.14159 (* "3.14" *)
-Number.Prototype.to_radix 16 255.0 (* "ff" *)
-Number.Prototype.to_exponential 2 123.456 (* "1.23e+2" *)
+  (* Number.Prototype - JavaScript-identical number formatting *)
+  assert (Number.Prototype.to_string 0.1 = "0.1");
+  assert (Number.Prototype.to_fixed 2 3.14159 = "3.14");
+  assert (Number.Prototype.to_radix 16 255.0 = "ff");
+  assert (Number.Prototype.to_exponential 2 123.456 = "1.23e+2");
 
-(* Global - JavaScript global functions *)
-Global.parse_float "3.14" (* Some 3.14 *)
-Global.parse_float ~options:Global.js_parse_options "0xff" (* Some 255.0 *)
+  (* Global - JavaScript global functions *)
+  assert (Global.parse_float "3.14" = Some 3.14);
+  assert (Global.parse_int "0x10" = Some 16);
+  assert (
+    Global.parse_float ~options:Global.js_number_options "0xff" = Some 255.0);
 
-(* Number - fast integer to string *)
-Number.of_int 42 (* "42" *)
-Number.of_int_radix ~radix:16 255 (* "ff" *)
-Number.of_int64 9223372036854775807L (* "9223372036854775807" *)
+  (* Number - fast integer to string *)
+  assert (Number.of_int 42 = "42");
+  assert (Number.of_int_radix ~radix:16 255 = "ff");
 
-(* String.Prototype - JavaScript string methods *)
-String.Prototype.to_lower_case "HELLO" (* "hello" *)
-String.Prototype.to_upper_case "world" (* "WORLD" *)
+  (* String.Prototype - JavaScript string methods *)
+  assert (String.Prototype.to_lower_case "HELLO" = "hello");
+  assert (String.Prototype.to_upper_case "world" = "WORLD")
 ]}

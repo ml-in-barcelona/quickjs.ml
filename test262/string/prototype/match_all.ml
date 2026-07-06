@@ -8,6 +8,10 @@
    Tests for String.Prototype.match_all *)
 
 module String = Quickjs.String
+module RegExp = Quickjs.RegExp
+
+let full_match (m : RegExp.match_result) =
+  match m.RegExp.captures.(0) with Some s -> s | None -> ""
 
 (* ===================================================================
    Basic matchAll functionality
@@ -18,9 +22,9 @@ let basic_match_all () =
   assert_int (List.length results) 3;
   match results with
   | [ m1; m2; m3 ] ->
-      assert_string m1.full_match "1";
-      assert_string m2.full_match "22";
-      assert_string m3.full_match "333"
+      assert_string (full_match m1) "1";
+      assert_string (full_match m2) "22";
+      assert_string (full_match m3) "333"
   | _ -> Alcotest.fail "Expected 3 matches"
 
 let no_matches () =
@@ -32,11 +36,11 @@ let with_capture_groups () =
   assert_int (List.length results) 2;
   match results with
   | [ m1; m2 ] ->
-      assert_string m1.full_match "a@b";
-      assert_int (Array.length m1.captures) 3;
-      assert_string m1.captures.(1) "a";
-      assert_string m1.captures.(2) "b";
-      assert_string m2.full_match "c@d"
+      assert_string (full_match m1) "a@b";
+      assert_int (Array.length m1.RegExp.captures) 3;
+      assert_string_opt m1.RegExp.captures.(1) (Some "a");
+      assert_string_opt m1.RegExp.captures.(2) (Some "b");
+      assert_string (full_match m2) "c@d"
   | _ -> Alcotest.fail "Expected 2 matches"
 
 let with_named_groups () =
@@ -45,10 +49,7 @@ let with_named_groups () =
   in
   assert_int (List.length results) 2;
   match results with
-  | m1 :: _ -> (
-      match List.assoc_opt "user" m1.groups with
-      | Some user -> assert_string user "a"
-      | None -> Alcotest.fail "Expected named group 'user'")
+  | m1 :: _ -> assert_string_opt (RegExp.group "user" m1) (Some "a")
   | _ -> Alcotest.fail "Expected matches"
 
 let unicode_match_all () =
@@ -60,8 +61,18 @@ let match_indices () =
   assert_int (List.length results) 2;
   match results with
   | [ m1; m2 ] ->
-      assert_int m1.index 4;
-      assert_int m2.index 7
+      assert_int m1.RegExp.index 4;
+      assert_int m2.RegExp.index 7
+  | _ -> Alcotest.fail "Expected 2 matches"
+
+let match_indices_unicode () =
+  (* Indices are UTF-16 code units, consistent with String.Prototype *)
+  let results = String.Prototype.match_all "b" "ébé b" in
+  assert_int (List.length results) 2;
+  match results with
+  | [ m1; m2 ] ->
+      assert_int m1.RegExp.index 1;
+      assert_int m2.RegExp.index 4
   | _ -> Alcotest.fail "Expected 2 matches"
 
 let empty_matches () =
@@ -69,6 +80,12 @@ let empty_matches () =
   let results = String.Prototype.match_all "a*" "aaa" in
   (* Should match "aaa" and then empty strings at boundaries *)
   assert_bool (List.length results >= 1) true
+
+let zero_width_group_terminates () =
+  (* Regression: a zero-width capture group at the match start used to
+     corrupt lastIndex and loop forever *)
+  let results = String.Prototype.match_all "(x?)ab" "abab" in
+  assert_int (List.length results) 2
 
 let tests =
   [
@@ -78,5 +95,7 @@ let tests =
     test "matchAll: with named groups" with_named_groups;
     test "matchAll: Unicode" unicode_match_all;
     test "matchAll: match indices" match_indices;
+    test "matchAll: match indices are UTF-16" match_indices_unicode;
     test "matchAll: empty matches" empty_matches;
+    test "matchAll: zero-width group terminates" zero_width_group_terminates;
   ]
