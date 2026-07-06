@@ -4,7 +4,12 @@
     - libregexp: Regular expression engine
     - libunicode: Unicode character utilities
     - dtoa: Number ↔ String conversion (js_dtoa, js_atod)
-    - cutils: Integer to string conversion (itoa family) *)
+    - cutils: Integer to string conversion (itoa family)
+
+    Some functions are bound through wrappers in [shims.c], either because
+    ctypes cannot express the exact C signature (const qualifiers), or to add
+    behavior the raw library delegates to its embedder (stack-overflow guard,
+    execution deadline, allocation). *)
 
 [@@@ocamlformat "disable"] (* We want to keep the comments aligned with the C code *)
 
@@ -18,10 +23,11 @@ module Functions (F : Ctypes.FOREIGN) = struct
      QuickJS's ES2023-compliant regex engine with Unicode support.
      ========================================================================= *)
 
-  (** Compile a regular expression pattern into bytecode.
-      Returns pointer to bytecode buffer, or NULL on error with message in error_msg. *)
+  (** Compile a regular expression pattern into bytecode (via shim that arms
+      the C-stack guard). The returned buffer must be released with
+      [lre_bytecode_free]. Returns NULL on error with message in error_msg. *)
   let lre_compile =
-    F.foreign "lre_compile"
+    F.foreign "lre_compile_shim"
       (Ctypes.ptr Ctypes.int          (* [out] int *plen - bytecode length *)
       @-> Ctypes.ptr Ctypes.char      (* [out] char *error_msg *)
       @-> Ctypes.int                  (* int error_msg_size *)
@@ -31,18 +37,30 @@ module Functions (F : Ctypes.FOREIGN) = struct
       @-> Ctypes.ptr Ctypes.void      (* void *opaque *)
       @-> F.returning (Ctypes.ptr Ctypes.uint8_t))
 
-  (** Execute a compiled regex against input string.
-      Returns: 1 = match, 0 = no match, -1 = error *)
+  (** Execute a compiled regex against input string (via shim that arms the
+      C-stack guard and threads an optional deadline).
+      Returns: 1 = match, 0 = no match,
+      -1 = LRE_RET_MEMORY_ERROR, -2 = LRE_RET_TIMEOUT *)
   let lre_exec =
-    F.foreign "lre_exec"
+    F.foreign "lre_exec_shim"
       (Ctypes.ptr (Ctypes.ptr Ctypes.uint8_t)  (* [out] uint8_t **capture *)
       @-> Ctypes.ptr Ctypes.uint8_t   (* const uint8_t *bc_buf - bytecode *)
       @-> Ctypes.ptr Ctypes.uint8_t   (* const uint8_t *cbuf - input *)
       @-> Ctypes.int                  (* int cindex - start index *)
       @-> Ctypes.int                  (* int clen - input length *)
       @-> Ctypes.int                  (* int cbuf_type: 0=8bit, 1=16bit *)
-      @-> Ctypes.ptr Ctypes.void      (* void *opaque *)
+      @-> Ctypes.ptr_opt Ctypes.double (* double *deadline (NULL = none) *)
       @-> F.returning Ctypes.int)
+
+  (** Free a bytecode buffer returned by [lre_compile] *)
+  let lre_bytecode_free =
+    F.foreign "lre_bytecode_free"
+      (Ctypes.ptr Ctypes.uint8_t      (* uint8_t *bc_buf *)
+      @-> F.returning Ctypes.void)
+
+  (** Monotonic clock in milliseconds; basis for [lre_exec] deadlines *)
+  let lre_now_ms =
+    F.foreign "lre_now_ms" (Ctypes.void @-> F.returning Ctypes.double)
 
   (** Get number of capture groups (including group 0 for full match) *)
   let lre_get_capture_count =
@@ -73,24 +91,26 @@ module Functions (F : Ctypes.FOREIGN) = struct
   (** Check if character has uppercase/lowercase variants (Cased property) *)
   let lre_is_cased =
     F.foreign "lre_is_cased"
-      (Ctypes.uint32_t @-> F.returning Ctypes.int)
+      (Ctypes.uint32_t @-> F.returning Ctypes.bool)
 
   (** Check if character is ignored during case mapping (Case_Ignorable) *)
   let lre_is_case_ignorable =
     F.foreign "lre_is_case_ignorable"
-      (Ctypes.uint32_t @-> F.returning Ctypes.int)
+      (Ctypes.uint32_t @-> F.returning Ctypes.bool)
 
   (** Check if character can start an identifier (ID_Start) *)
   let lre_is_id_start =
     F.foreign "lre_is_id_start"
-      (Ctypes.uint32_t @-> F.returning Ctypes.int)
+      (Ctypes.uint32_t @-> F.returning Ctypes.bool)
 
   (** Check if character can continue an identifier (ID_Continue) *)
   let lre_is_id_continue =
     F.foreign "lre_is_id_continue"
-      (Ctypes.uint32_t @-> F.returning Ctypes.int)
+      (Ctypes.uint32_t @-> F.returning Ctypes.bool)
 
-  (** Check if character is whitespace (works for all codepoints) *)
+  (** Check if character is whitespace per ECMA-262 (WhiteSpace or
+      LineTerminator; matches regexp \s, String.prototype.trim and the
+      whitespace skipped by parseInt/parseFloat) *)
   let lre_is_space =
     F.foreign "lre_is_space"
       (Ctypes.int @-> F.returning Ctypes.bool)
@@ -108,11 +128,11 @@ module Functions (F : Ctypes.FOREIGN) = struct
       @-> F.returning Ctypes.int)
 
   (** Canonicalize character for case-insensitive regex matching.
-      is_unicode: 1 = full Unicode folding, 0 = ASCII only *)
+      is_unicode: true = full Unicode folding, false = ASCII only *)
   let lre_canonicalize =
     F.foreign "lre_canonicalize"
       (Ctypes.uint32_t                (* uint32_t c *)
-      @-> Ctypes.int                  (* int is_unicode *)
+      @-> Ctypes.bool                 (* bool is_unicode *)
       @-> F.returning Ctypes.int)
 
   (* --- Normalization --- *)
@@ -168,20 +188,22 @@ module Functions (F : Ctypes.FOREIGN) = struct
 
   (** Parse string to double with JS semantics (via shim).
       Flags: JS_ATOD_INT_ONLY | JS_ATOD_ACCEPT_BIN_OCT | etc.
-      Sets *pnext to position after parsed number *)
+      Sets *poffset to the number of bytes consumed (0 when parsing failed).
+      Returns NaN when nothing could be parsed. *)
   let js_atod =
     F.foreign "js_atod_shim"
       (Ctypes.string                  (* const char *str *)
-      @-> Ctypes.ptr (Ctypes.ptr Ctypes.char)  (* [out] char **pnext *)
+      @-> Ctypes.ptr Ctypes.int       (* [out] int *poffset *)
       @-> Ctypes.int                  (* int radix (0=auto, 2-36) *)
       @-> Ctypes.int                  (* int flags *)
       @-> Ctypes.ptr Ctypes.void      (* JSATODTempMem *tmp_mem *)
       @-> F.returning Ctypes.double)
 
   (* =========================================================================
-     cutils.c - Integer to String Conversion
+     cutils.c / dtoa.c - Integer to String Conversion
 
-     Fast integer-to-string functions (itoa family).
+     Fast integer-to-string functions (itoa family). These do not
+     NUL-terminate; they return the number of bytes written.
      ========================================================================= *)
 
   (** Convert unsigned 32-bit integer to decimal string *)
