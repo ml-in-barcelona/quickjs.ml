@@ -32,22 +32,26 @@ module Prototype : sig
   val to_string : ?options:options -> float -> string
   (** [to_string ?options n] converts number [n] to string with JS-compatible
       formatting. Equivalent to JavaScript's Number.prototype.toString().
-      @raise Invalid_argument if radix is not in range 2-36 *)
+      @raise Invalid_argument
+        if radix is not in range 2-36, if [Fixed] digits are not in 1-101, if
+        [Fractional] digits are not in 0-101, or if a radix other than 10 is
+        combined with a format other than [Free] (a restriction of the
+        underlying C implementation) *)
 
   val to_fixed : int -> float -> string
   (** [to_fixed digits n] formats [n] with [digits] fractional digits.
       Equivalent to JavaScript's Number.prototype.toFixed().
-      @raise Invalid_argument if digits is not in range 0-101 *)
+      @raise Invalid_argument if digits is not in range 0-100 *)
 
   val to_precision : int -> float -> string
   (** [to_precision digits n] formats [n] with [digits] significant digits.
       Equivalent to JavaScript's Number.prototype.toPrecision().
-      @raise Invalid_argument if digits is not in range 1-101 *)
+      @raise Invalid_argument if digits is not in range 1-100 *)
 
   val to_exponential : int -> float -> string
   (** [to_exponential digits n] formats [n] in exponential notation. Equivalent
       to JavaScript's Number.prototype.toExponential().
-      @raise Invalid_argument if digits is not in range 0-101 *)
+      @raise Invalid_argument if digits is not in range 0-100 *)
 
   val to_radix : int -> float -> string
   (** [to_radix radix n] formats [n] in the given radix (2-36). Equivalent to
