@@ -10,6 +10,7 @@
 
     - {b Indices}: All string indices are UTF-16 code unit positions, not byte
       positions. A string containing an emoji has length 2 (surrogate pair).
+      Indices returned by the RegExp-based methods use the same unit.
 
     - {b Not-found values}: Methods like [index_of] return [-1] when not found
       (JavaScript convention), not [option] (OCaml convention). This matches
@@ -20,7 +21,11 @@
       JavaScript's implicit NaN coercion.
 
     - {b Negative indices}: Methods like [slice] support negative indices
-      counting from the end, matching JavaScript behavior. *)
+      counting from the end, matching JavaScript behavior.
+
+    - {b Invalid patterns}: RegExp-based methods raise [Invalid_argument] on
+      invalid patterns, mirroring the SyntaxError JavaScript throws for invalid
+      regular expression literals. *)
 
 (** Unicode normalization forms *)
 type normalization = NFC | NFD | NFKC | NFKD
@@ -45,7 +50,8 @@ module Prototype : sig
 
   val to_lower_case : string -> string
   (** [to_lower_case s] returns a new string with all characters converted to
-      lowercase. Equivalent to JavaScript's String.prototype.toLowerCase(). *)
+      lowercase, including context-sensitive mappings such as the Greek final
+      sigma. Equivalent to JavaScript's String.prototype.toLowerCase(). *)
 
   val to_upper_case : string -> string
   (** [to_upper_case s] returns a new string with all characters converted to
@@ -132,7 +138,7 @@ module Prototype : sig
 
   val starts_with_from : string -> int -> string -> bool
   (** [starts_with_from search pos s] checks if [s] starts with [search] at
-      position [pos]. *)
+      position [pos]. Out-of-range positions are clamped. *)
 
   val ends_with : string -> string -> bool
   (** [ends_with search s] returns true if [s] ends with [search]. Equivalent to
@@ -145,8 +151,9 @@ module Prototype : sig
   (** {1 Transform methods} *)
 
   val trim : string -> string
-  (** [trim s] removes leading and trailing whitespace. Equivalent to
-      JavaScript's String.prototype.trim(). *)
+  (** [trim s] removes leading and trailing JavaScript whitespace (the ECMA-262
+      WhiteSpace and LineTerminator sets). Equivalent to JavaScript's
+      String.prototype.trim(). *)
 
   val trim_start : string -> string
   (** [trim_start s] removes leading whitespace. Equivalent to JavaScript's
@@ -178,61 +185,77 @@ module Prototype : sig
         if [n] is negative. Equivalent to JavaScript's
         String.prototype.repeat(). *)
 
-  (** {1 RegExp-based methods} *)
+  (** {1 RegExp-based methods}
 
-  val match_ : string -> string -> string array option
-  (** [match_ pattern s] returns captures from first match of [pattern] in [s].
-      Returns [None] if no match. Equivalent to JavaScript's
-      String.prototype.match(). *)
+      All methods in this section compile their pattern argument and raise
+      [Invalid_argument] when it is not a valid regular expression, like the
+      SyntaxError JavaScript throws. *)
 
-  val match_flags : string -> string -> string -> string array option
-  (** [match_flags pattern flags s] matches with specified regex flags. *)
+  val match_ : string -> string -> RegExp.match_result option
+  (** [match_ pattern s] returns the first match of [pattern] in [s], with
+      captures, named groups and index, or [None] if there is no match.
+      Equivalent to JavaScript's String.prototype.match() without the global
+      flag.
+      @raise Invalid_argument if [pattern] is invalid. *)
 
-  val match_global : string -> string -> string array
-  (** [match_global pattern s] returns all matches (with global flag). *)
+  val match_flags : string -> string -> string -> RegExp.match_result option
+  (** [match_flags pattern flags s] matches with the given regex flags. The
+      ['g'] flag is rejected because a single [match_result] cannot represent
+      multiple matches; use {!match_global} or {!match_all} instead.
+      @raise Invalid_argument if [pattern] or [flags] is invalid. *)
 
-  type match_result = {
-    full_match : string;
-    captures : string array;
-    groups : (string * string) list;
-    index : int;
-  }
-  (** Result type for matchAll *)
+  val match_global : ?flags:string -> string -> string -> string array
+  (** [match_global ?flags pattern s] returns all full matches, like
+      JavaScript's String.prototype.match() with the global flag (which returns
+      full matches only, without capture groups). Returns [[||]] when there is
+      no match (JavaScript returns null). The global flag is added
+      automatically; [?flags] can supply extra flags such as ["i"].
+      @raise Invalid_argument if [pattern] or [flags] is invalid. *)
 
-  val match_all : string -> string -> match_result list
-  (** [match_all pattern s] returns iterator-like list of all match results.
-      Equivalent to JavaScript's String.prototype.matchAll(). *)
+  val match_all : ?flags:string -> string -> string -> RegExp.match_result list
+  (** [match_all ?flags pattern s] returns all match results, with captures,
+      named groups and indices. Equivalent to JavaScript's
+      String.prototype.matchAll(). The global flag is added automatically.
+      @raise Invalid_argument if [pattern] or [flags] is invalid. *)
 
   val search : string -> string -> int
   (** [search pattern s] returns UTF-16 index of first match, or -1 if not found
       (JavaScript semantics). Equivalent to JavaScript's
-      String.prototype.search(). *)
+      String.prototype.search().
+      @raise Invalid_argument if [pattern] is invalid. *)
 
   val search_flags : string -> string -> string -> int
-  (** [search_flags pattern flags s] searches with specified regex flags. *)
+  (** [search_flags pattern flags s] searches with specified regex flags.
+      @raise Invalid_argument if [pattern] or [flags] is invalid. *)
 
   val replace : string -> string -> string -> string
   (** [replace search replacement s] replaces first occurrence of [search] with
       [replacement]. Equivalent to JavaScript's String.prototype.replace() with
-      string argument. *)
+      string argument. Supports the [$$], [$&], [$`] and [$'] replacement
+      patterns; [$`] and [$'] always refer to the original string. *)
 
   val replace_regex : string -> string -> string -> string
-  (** [replace_regex pattern replacement s] replaces first regex match. *)
+  (** [replace_regex pattern replacement s] replaces the first regex match.
+      Capture groups are available as [$1]..[$99] in [replacement]; groups that
+      did not participate substitute the empty string.
+      @raise Invalid_argument if [pattern] is invalid. *)
 
   val replace_regex_global : string -> string -> string -> string
   (** [replace_regex_global pattern replacement s] replaces all regex matches.
-  *)
+      @raise Invalid_argument if [pattern] is invalid. *)
 
   val replace_regex_flags : string -> string -> string -> string -> string
   (** [replace_regex_flags pattern flags replacement s] replaces with specified
-      flags. *)
+      flags.
+      @raise Invalid_argument if [pattern] or [flags] is invalid. *)
 
   val replace_all : string -> string -> string -> string
   (** [replace_all search replacement s] replaces all occurrences. Equivalent to
-      JavaScript's String.prototype.replaceAll(). *)
+      JavaScript's String.prototype.replaceAll() with a string pattern. *)
 
   val replace_all_regex : string -> string -> string -> string
-  (** [replace_all_regex pattern replacement s] replaces all regex matches. *)
+  (** [replace_all_regex pattern replacement s] replaces all regex matches.
+      @raise Invalid_argument if [pattern] is invalid. *)
 
   val split : string -> string -> string array
   (** [split separator s] splits [s] by [separator]. Equivalent to JavaScript's
@@ -242,7 +265,10 @@ module Prototype : sig
   (** [split_limit separator limit s] splits with maximum [limit] parts. *)
 
   val split_regex : string -> string -> string array
-  (** [split_regex pattern s] splits by regex pattern. *)
+  (** [split_regex pattern s] splits by regex pattern. Capture groups are
+      spliced into the result, as in JavaScript; groups that did not participate
+      contribute [""].
+      @raise Invalid_argument if [pattern] is invalid. *)
 end
 
 val lowercase_char : Uchar.t -> Uchar.t list
