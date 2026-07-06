@@ -44,7 +44,7 @@ format: ## Format the codebase with ocamlformat
 format-check: ## Checks if format is correct
 	$(DUNE) build @fmt
 
-.PHONY: init
+.PHONY: setup-githooks
 setup-githooks: ## Setup githooks
 	git config core.hooksPath .githooks
 
