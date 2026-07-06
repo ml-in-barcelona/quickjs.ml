@@ -1,74 +1,127 @@
+(** JavaScript RegExp built-in object, backed by QuickJS's libregexp.
+
+    {2 Index units}
+
+    Strings are UTF-8 encoded OCaml strings, but every index exposed by this
+    module ([index], [last_index], [set_last_index]) is a
+    {b UTF-16 code unit offset}, exactly like JavaScript's RegExp. This keeps
+    results consistent with {!Quickjs.String}, whose indices are UTF-16 as well.
+
+    {2 Lifetime and state}
+
+    A compiled regexp owns C-allocated bytecode which is released automatically
+    when the value is garbage collected. Like in JavaScript, regexps compiled
+    with the global ([g]) or sticky ([y]) flag carry mutable matching state
+    ([last_index]); a [t] value is therefore not safe to share between threads
+    without synchronization. *)
+
 type t
 (** The RegExp object *)
 
-type result
-(** The result of a executing a RegExp on a string *)
+type match_result = {
+  captures : string option array;
+      (** Entry 0 is the full match; entries 1..n are capture groups. A group
+          that did not participate in the match is [None] (JavaScript's
+          [undefined]), which is distinct from a group that matched the empty
+          string ([Some ""]). *)
+  index : int;  (** UTF-16 index of the match start in [input]. *)
+  input : string;  (** The input string that was matched against. *)
+  groups : (string * string option) list;
+      (** Named capture groups in source order, with [None] for groups that did
+          not participate. *)
+}
+(** The result of a successful match. *)
 
 type compile_error =
   [ `Unexpected_end
   | `Malformed_unicode_char
   | `Invalid_escape_sequence
   | `Nothing_to_repeat
+  | `Stack_overflow
+  | `Invalid_flags of string
   | `Unknown of string ]
-(** Possible errors when compiling a RegExp pattern *)
+(** Possible errors when compiling a RegExp pattern. [`Invalid_flags] is
+    returned for unknown flags, duplicated flags, or combining [u] with [v].
+    [`Stack_overflow] is returned for patterns nested too deeply to compile. *)
+
+exception Timeout
+(** Raised by {!exec} and {!test} when the [timeout_ms] budget is exhausted. *)
 
 val compile_error_to_string : compile_error -> string
 (** Convert a compile error to a human-readable string *)
 
 val compile : flags:string -> string -> (t, compile_error) Stdlib.result
-(** Constructs a RegExp.t from a string describing a regex and their flags.
-    Returns [Error (error_type, raw_message)] if compilation fails. *)
+(** [compile ~flags source] compiles [source] with the given JavaScript flags
+    (any of ["dgimsuvy"], each at most once; [u] and [v] are mutually
+    exclusive).
+
+    Without the [u]/[v] flag the pattern is matched as UTF-16 code units (astral
+    code points behave as surrogate pairs), mirroring JavaScript's non-unicode
+    regexp semantics. *)
 
 val last_index : t -> int
-(** returns the index where the next match will start its search *)
+(** Returns the UTF-16 index where the next match will start its search. Only
+    meaningful for regexps compiled with the global ([g]) or sticky ([y]) flag;
+    it stays [0] otherwise, like in JavaScript. *)
 
 val set_last_index : t -> int -> unit
-(** sets the index at which the next match (RegExp.exec or RegExp.test) will
-    start its search from *)
+(** Sets the UTF-16 index at which the next {!exec} or {!test} on a global or
+    sticky regexp starts its search. Negative values are clamped to [0]
+    (JavaScript's ToLength coercion). *)
 
 val flags : t -> string
-(** returns the enabled flags as a string *)
+(** Returns the enabled flags in canonical order ("dgimsuvy" subset), exactly as
+    passed to {!compile}. *)
 
 val global : t -> bool
-(** returns a bool indicating whether the global flag (g) is set *)
+(** whether the global flag (g) is set *)
 
 val ignorecase : t -> bool
-(** returns a bool indicating whether the ignorecase (i) flag is set *)
+(** whether the ignorecase flag (i) is set *)
 
 val multiline : t -> bool
-(** returns a bool indicating whether the multiline (m) flag is set *)
+(** whether the multiline flag (m) is set *)
 
 val dotall : t -> bool
-(** returns a bool indicating whether the dot all (s) flag is set *)
+(** whether the dotall flag (s) is set *)
 
 val sticky : t -> bool
-(** returns a bool indicating whether the sticky (y) flag is set *)
+(** whether the sticky flag (y) is set *)
 
 val unicode : t -> bool
-(** returns a bool indicating whether the unicode (u ) flag is set *)
+(** whether the unicode flag (u) is set *)
+
+val unicode_sets : t -> bool
+(** whether the unicode sets flag (v) is set *)
+
+val indices : t -> bool
+(** whether the indices flag (d) is set *)
 
 val source : t -> string
 (** returns the regexp pattern as a string *)
 
-val test : t -> string -> bool
-(** checks whether the given RegExp.t will match (or not match) a given string
-*)
+val exec : ?timeout_ms:float -> t -> string -> match_result option
+(** [exec regexp input] executes a search and returns the first match, or [None]
+    when there is no match.
 
-val exec : t -> string -> result
-(** executes a search on a given string using the given RegExp.t *)
+    For global/sticky regexps the search starts at {!last_index}, and
+    {!last_index} is updated to the end of the match (or reset to [0] on no
+    match), enabling JavaScript-style match iteration.
 
-val captures : result -> string array
-(** an array of the match and captures *)
+    [timeout_ms] bounds the execution time of the underlying engine; when
+    exhausted, {!Timeout} is raised. Without it, pathological patterns can
+    backtrack for a very long time.
 
-val groups : result -> (string * string) list
-(** returns all named capture groups as a list of (name, value) pairs *)
+    @raise Timeout when [timeout_ms] is exceeded.
+    @raise Out_of_memory when the engine fails to allocate. *)
 
-val group : string -> result -> string option
-(** returns the value of a named capture group, or None if not found *)
+val test : ?timeout_ms:float -> t -> string -> bool
+(** [test regexp input] is [exec regexp input <> None]. Like in JavaScript, it
+    advances {!last_index} on global/sticky regexps.
 
-val input : result -> string
-(** the original input string *)
+    @raise Timeout when [timeout_ms] is exceeded.
+    @raise Out_of_memory when the engine fails to allocate. *)
 
-val index : result -> int
-(** sets the index at which the next match (RegExp.exec or RegExp.test) will
-    start its search from *)
+val group : string -> match_result -> string option
+(** [group name m] returns the value of named capture group [name], or [None]
+    when the group does not exist or did not participate in the match. *)

@@ -1,50 +1,62 @@
+(* JavaScript RegExp built-in object, backed by QuickJS's libregexp.
+
+   Unit conventions: every index that crosses this module's public API
+   ([index], [last_index], [set_last_index]) is a UTF-16 code unit offset,
+   exactly like JavaScript's RegExp. Strings themselves are UTF-8 encoded
+   OCaml strings; conversions happen internally. *)
+
+module Libregexp = Quickjs_c.Libregexp
+
+type bytecode =
+  (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
+
 type t = {
+  bc_storage : bytecode; [@warning "-69"]
+      (* Owns the compiled bytecode. Stored in a Bigarray so the GC accounts
+         for the memory (lre_compile's malloc'd buffer is copied here and
+         freed immediately); [bc] points into it and keeps it alive. *)
   bc : Unsigned.uint8 Ctypes_static.ptr;
   source : string;
-  flags : int;
-  mutable last_index : int;
+  flags : int; (* flags as requested by the user *)
+  mutable last_index : int; (* UTF-16 code units *)
 }
 
 type match_result = {
-  captures : string array;
+  captures : string option array;
+  index : int; (* UTF-16 code units *)
   input : string;
-  index : int;
-  groups : (string * string) list;
+  groups : (string * string option) list;
 }
-
-type result = (match_result, string) Stdlib.result
 
 type compile_error =
   [ `Unexpected_end
   | `Malformed_unicode_char
   | `Invalid_escape_sequence
   | `Nothing_to_repeat
+  | `Stack_overflow
+  | `Invalid_flags of string
   | `Unknown of string ]
+
+exception Timeout
 
 let compile_error_to_string = function
   | `Unexpected_end -> "unexpected end"
   | `Malformed_unicode_char -> "malformed unicode char"
   | `Invalid_escape_sequence -> "invalid escape sequence"
   | `Nothing_to_repeat -> "nothing to repeat"
+  | `Stack_overflow -> "stack overflow"
+  | `Invalid_flags msg -> msg
   | `Unknown s -> s
 
-(* #define LRE_FLAG_GLOBAL (1 << 0) *)
-let lre_flag_global = 0b01
-
-(* #define LRE_FLAG_IGNORECASE (1 << 1) *)
-let lre_flag_ignorecase = 0b10
-
-(* #define LRE_FLAG_MULTILINE (1 << 2) *)
-let lre_flag_multiline = 0b100
-
-(* #define LRE_FLAG_DOTALL (1 << 3) *)
-let lre_flag_dotall = 0b1000
-
-(* #define LRE_FLAG_UNICODE (1 << 4) *)
-let lre_flag_unicode = 0b10000
-
-(* #define LRE_FLAG_STICKY (1 << 5) *)
-let lre_flag_sticky = 0b100000
+(* LRE_FLAG_* values from libregexp.h *)
+let lre_flag_global = 1 lsl 0
+let lre_flag_ignorecase = 1 lsl 1
+let lre_flag_multiline = 1 lsl 2
+let lre_flag_dotall = 1 lsl 3
+let lre_flag_unicode = 1 lsl 4
+let lre_flag_sticky = 1 lsl 5
+let lre_flag_indices = 1 lsl 6
+let lre_flag_unicode_sets = 1 lsl 8
 let has_flag flags flag = flags land flag != 0
 let global regexp = has_flag regexp.flags lre_flag_global
 let ignorecase regexp = has_flag regexp.flags lre_flag_ignorecase
@@ -52,40 +64,51 @@ let multiline regexp = has_flag regexp.flags lre_flag_multiline
 let dotall regexp = has_flag regexp.flags lre_flag_dotall
 let sticky regexp = has_flag regexp.flags lre_flag_sticky
 let unicode regexp = has_flag regexp.flags lre_flag_unicode
+let unicode_sets regexp = has_flag regexp.flags lre_flag_unicode_sets
+let indices regexp = has_flag regexp.flags lre_flag_indices
 
+(* JavaScript regular expression flags, in canonical order (the order
+   returned by JavaScript's RegExp.prototype.flags). *)
+let known_flags =
+  [
+    ('d', lre_flag_indices);
+    ('g', lre_flag_global);
+    ('i', lre_flag_ignorecase);
+    ('m', lre_flag_multiline);
+    ('s', lre_flag_dotall);
+    ('u', lre_flag_unicode);
+    ('v', lre_flag_unicode_sets);
+    ('y', lre_flag_sticky);
+  ]
+
+(* Parse a JavaScript flags string. Mirrors QuickJS's js_compile_regexp:
+   unknown flags, duplicated flags and combining 'u' with 'v' are errors. *)
 let parse_flags flags =
-  let rec parse_flags' flags acc =
-    match flags with
-    | [] -> acc
-    | 'g' :: rest -> parse_flags' rest (acc lor lre_flag_global)
-    | 'i' :: rest -> parse_flags' rest (acc lor lre_flag_ignorecase)
-    | 'm' :: rest -> parse_flags' rest (acc lor lre_flag_multiline)
-    | 's' :: rest -> parse_flags' rest (acc lor lre_flag_dotall)
-    | 'u' :: rest -> parse_flags' rest (acc lor lre_flag_unicode)
-    | 'y' :: rest -> parse_flags' rest (acc lor lre_flag_sticky)
-    | _ :: rest -> parse_flags' rest acc
+  let rec loop i acc =
+    if i >= Stdlib.String.length flags then Ok acc
+    else
+      let c = Stdlib.String.get flags i in
+      match List.assoc_opt c known_flags with
+      | None ->
+          Error (`Invalid_flags (Printf.sprintf "unknown regexp flag '%c'" c))
+      | Some mask when has_flag acc mask ->
+          Error
+            (`Invalid_flags (Printf.sprintf "duplicated regexp flag '%c'" c))
+      | Some mask -> loop (i + 1) (acc lor mask)
   in
-  parse_flags' (Stdlib.String.to_seq flags |> List.of_seq) 0
+  match loop 0 0 with
+  | Error _ as error -> error
+  | Ok acc
+    when has_flag acc lre_flag_unicode && has_flag acc lre_flag_unicode_sets ->
+      Error (`Invalid_flags "regexp flags 'u' and 'v' cannot be combined")
+  | Ok acc -> Ok acc
 
 let flags_to_string flags =
-  let rec flags_to_string' flags acc =
-    match flags with
-    | 0 -> acc
-    | _ when has_flag flags lre_flag_global ->
-        flags_to_string' (flags land lre_flag_global lxor flags) (acc ^ "g")
-    | _ when has_flag flags lre_flag_ignorecase ->
-        flags_to_string' (flags land lre_flag_ignorecase lxor flags) (acc ^ "i")
-    | _ when has_flag flags lre_flag_multiline ->
-        flags_to_string' (flags land lre_flag_multiline lxor flags) (acc ^ "m")
-    | _ when has_flag flags lre_flag_dotall ->
-        flags_to_string' (flags land lre_flag_dotall lxor flags) (acc ^ "s")
-    | _ when has_flag flags lre_flag_unicode ->
-        flags_to_string' (flags land lre_flag_unicode lxor flags) (acc ^ "u")
-    | _ when has_flag flags lre_flag_sticky ->
-        flags_to_string' (flags land lre_flag_sticky lxor flags) (acc ^ "y")
-    | _ -> acc
-  in
-  flags_to_string' flags ""
+  Stdlib.String.concat ""
+    (List.filter_map
+       (fun (c, mask) ->
+         if has_flag flags mask then Some (Stdlib.String.make 1 c) else None)
+       known_flags)
 
 let strlen ptr =
   let rec aux ptr len =
@@ -94,85 +117,168 @@ let strlen ptr =
   in
   aux ptr 0
 
-(* Check if a string contains non-ASCII bytes that require Unicode mode in libregexp.
-   Any byte >= 0x80 indicates multi-byte UTF-8 which needs Unicode mode for proper matching. *)
-let needs_unicode_mode s =
+(* Check whether a string contains code points >= U+10000. In valid UTF-8
+   those are exactly the 4-byte sequences, whose lead byte is >= 0xF0. *)
+let has_astral_chars s =
   let len = Stdlib.String.length s in
   let rec check i =
     if i >= len then false
-    else
-      let byte = Char.code (Stdlib.String.get s i) in
-      if byte >= 0x80 then true else check (i + 1)
+    else if Char.code (Stdlib.String.get s i) >= 0xF0 then true
+    else check (i + 1)
   in
   check 0
 
-let compile ~flags re =
-  let compiled_byte_code_len = Ctypes.allocate Ctypes.int 0 in
-  let size_of_error_msg = 64 in
-  let error_msg = Ctypes.allocate_n ~count:size_of_error_msg Ctypes.char in
-  let input = Ctypes.ocaml_string_start re in
-  let input_length = Stdlib.String.length re |> Unsigned.Size_t.of_int in
-  let parsed_flags = parse_flags flags in
-  (* Auto-enable Unicode mode for patterns containing 4-byte UTF-8 sequences
-     (code points >= U+10000, like emojis). libregexp requires this. *)
-  let flags =
-    if needs_unicode_mode re then parsed_flags lor lre_flag_unicode
-    else parsed_flags
-  in
-  let compiled_byte_code =
-    Libregexp.compile compiled_byte_code_len error_msg size_of_error_msg input
-      input_length flags Ctypes.null
-  in
-  match Ctypes.is_null compiled_byte_code with
-  | false -> Ok { bc = compiled_byte_code; flags; last_index = 0; source = re }
-  | true ->
-      let length = strlen error_msg in
-      let error = Ctypes.string_from_ptr ~length error_msg in
-      Error
-        (match error with
-        | "unexpected end" -> `Unexpected_end
-        | "malformed unicode char" -> `Malformed_unicode_char
-        | "nothing to repeat" -> `Nothing_to_repeat
-        | "invalid escape sequence in regular expression" ->
-            `Invalid_escape_sequence
-        | unknown -> `Unknown unknown)
-
-let index result = match result with Ok result -> result.index | Error _ -> 0
-let last_index regexp = regexp.last_index
-let source regexp = regexp.source
-let input result = match result with Ok result -> result.input | Error _ -> ""
-let set_last_index regexp idx = regexp.last_index <- idx
-
-let captures result =
-  match result with Ok result -> result.captures | Error _ -> [||]
-
-let groups result =
-  match result with Ok result -> result.groups | Error _ -> []
-
-let group name result =
-  match result with
-  | Ok result -> List.assoc_opt name result.groups
-  | Error _ -> None
-
-let flags regexp = flags_to_string regexp.flags
-
-(* Convert UTF-8 string to UTF-16 code units (as uint8_t pairs, little-endian) *)
-let utf8_to_utf16_bytes s =
+(* Check if a string contains only ASCII bytes. *)
+let is_ascii s =
   let len = Stdlib.String.length s in
-  let buf = Stdlib.Buffer.create (len * 2) in
-  let add_u16 code =
-    Stdlib.Buffer.add_char buf (Char.chr (code land 0xFF));
-    Stdlib.Buffer.add_char buf (Char.chr ((code lsr 8) land 0xFF))
+  let rec check i =
+    if i >= len then true
+    else if Char.code (Stdlib.String.get s i) >= 0x80 then false
+    else check (i + 1)
+  in
+  check 0
+
+(* Encode a string as CESU-8: like UTF-8, except code points >= U+10000 are
+   encoded as a UTF-16 surrogate pair, each surrogate encoded as a 3-byte
+   sequence. This is what QuickJS feeds lre_compile for regexps without the
+   'u'/'v' flag (see JS_ToCStringLen2 in quickjs.c): the pattern is then a
+   sequence of UTF-16 code units, matching JavaScript's non-unicode regexp
+   semantics exactly (libregexp rejects raw astral code points otherwise). *)
+let to_cesu8 s =
+  let len = Stdlib.String.length s in
+  let buf = Stdlib.Buffer.create (len + 8) in
+  let add_code_unit code =
+    (* code <= 0xFFFF; 3-byte encoding also covers surrogate values, which
+       Buffer.add_utf_8_uchar would reject *)
+    if code < 0x80 then Stdlib.Buffer.add_char buf (Char.chr code)
+    else if code < 0x800 then begin
+      Stdlib.Buffer.add_char buf (Char.chr (0xC0 lor (code lsr 6)));
+      Stdlib.Buffer.add_char buf (Char.chr (0x80 lor (code land 0x3F)))
+    end
+    else begin
+      Stdlib.Buffer.add_char buf (Char.chr (0xE0 lor (code lsr 12)));
+      Stdlib.Buffer.add_char buf (Char.chr (0x80 lor ((code lsr 6) land 0x3F)));
+      Stdlib.Buffer.add_char buf (Char.chr (0x80 lor (code land 0x3F)))
+    end
   in
   let rec loop i =
     if i >= len then Stdlib.Buffer.contents buf
     else
       let d = Stdlib.String.get_utf_8_uchar s i in
-      let u = Uchar.utf_decode_uchar d in
-      let code = Uchar.to_int u in
+      let code = Uchar.to_int (Uchar.utf_decode_uchar d) in
+      if code < 0x10000 then add_code_unit code
+      else begin
+        let code' = code - 0x10000 in
+        add_code_unit (0xD800 lor (code' lsr 10));
+        add_code_unit (0xDC00 lor (code' land 0x3FF))
+      end;
+      loop (i + Uchar.utf_decode_length d)
+  in
+  loop 0
+
+let compile ~flags:flags_string source =
+  match parse_flags flags_string with
+  | Error _ as error -> error
+  | Ok flags -> (
+      let compiled_byte_code_len = Ctypes.allocate Ctypes.int 0 in
+      let size_of_error_msg = 64 in
+      let error_msg = Ctypes.allocate_n ~count:size_of_error_msg Ctypes.char in
+      (* Without 'u'/'v', JavaScript treats the pattern as UTF-16 code units:
+         astral code points become surrogate pairs. libregexp expects the
+         pattern in CESU-8 in that mode, and in UTF-8 in unicode mode. *)
+      let is_unicode_mode =
+        has_flag flags lre_flag_unicode || has_flag flags lre_flag_unicode_sets
+      in
+      let pattern =
+        if (not is_unicode_mode) && has_astral_chars source then to_cesu8 source
+        else source
+      in
+      let input = Ctypes.ocaml_string_start pattern in
+      let input_length =
+        Stdlib.String.length pattern |> Unsigned.Size_t.of_int
+      in
+      let compiled_byte_code =
+        Libregexp.compile compiled_byte_code_len error_msg size_of_error_msg
+          input input_length flags Ctypes.null
+      in
+      match Ctypes.is_null compiled_byte_code with
+      | false ->
+          (* Copy the bytecode into GC-accounted storage (Bigarray) and free
+             the C-allocated buffer right away: the GC cannot see C-side
+             memory, so keeping it alive behind a finalizer lets allocation
+             debt grow unboundedly under light OCaml heap pressure. *)
+          let bc_len = Ctypes.( !@ ) compiled_byte_code_len in
+          let bc_storage =
+            Bigarray.Array1.create Bigarray.char Bigarray.c_layout bc_len
+          in
+          let src_chars =
+            Ctypes.coerce
+              (Ctypes.ptr Ctypes.uint8_t)
+              (Ctypes.ptr Ctypes.char) compiled_byte_code
+          in
+          for i = 0 to bc_len - 1 do
+            Bigarray.Array1.unsafe_set bc_storage i
+              (Ctypes.( !@ ) (Ctypes.( +@ ) src_chars i))
+          done;
+          Libregexp.bytecode_free compiled_byte_code;
+          let bc =
+            Ctypes.coerce (Ctypes.ptr Ctypes.char)
+              (Ctypes.ptr Ctypes.uint8_t)
+              (Ctypes.bigarray_start Ctypes.array1 bc_storage)
+          in
+          Ok { bc_storage; bc; flags; last_index = 0; source }
+      | true ->
+          let length = strlen error_msg in
+          let error = Ctypes.string_from_ptr ~length error_msg in
+          Error
+            (match error with
+            | "unexpected end" -> `Unexpected_end
+            | "malformed unicode char" -> `Malformed_unicode_char
+            | "nothing to repeat" -> `Nothing_to_repeat
+            | "stack overflow" -> `Stack_overflow
+            | "invalid escape sequence in regular expression" ->
+                `Invalid_escape_sequence
+            | unknown -> `Unknown unknown))
+
+let last_index regexp = regexp.last_index
+
+(* JavaScript coerces lastIndex with ToLength, which clamps negative values
+   to 0. Without the clamp a negative index would reach lre_exec as an
+   out-of-bounds read. *)
+let set_last_index regexp idx = regexp.last_index <- max 0 idx
+let source regexp = regexp.source
+let flags regexp = flags_to_string regexp.flags
+
+let group name result =
+  match List.assoc_opt name result.groups with
+  | Some value -> value
+  | None -> None
+
+(* Convert a UTF-8 string to UTF-16 code units, packed as bytes in the
+   platform's native endianness (lre_exec reads the 16-bit buffer through
+   native uint16_t loads). *)
+let utf8_to_utf16_bytes s =
+  let len = Stdlib.String.length s in
+  let buf = Stdlib.Buffer.create (len * 2) in
+  let add_u16 code =
+    let lo = Char.chr (code land 0xFF) in
+    let hi = Char.chr ((code lsr 8) land 0xFF) in
+    if Sys.big_endian then begin
+      Stdlib.Buffer.add_char buf hi;
+      Stdlib.Buffer.add_char buf lo
+    end
+    else begin
+      Stdlib.Buffer.add_char buf lo;
+      Stdlib.Buffer.add_char buf hi
+    end
+  in
+  let rec loop i =
+    if i >= len then Stdlib.Buffer.contents buf
+    else
+      let d = Stdlib.String.get_utf_8_uchar s i in
+      let code = Uchar.to_int (Uchar.utf_decode_uchar d) in
       (if code < 0x10000 then add_u16 code
        else
-         (* Surrogate pair for code points >= 0x10000 *)
          let code' = code - 0x10000 in
          add_u16 (0xD800 lor (code' lsr 10));
          add_u16 (0xDC00 lor (code' land 0x3FF)));
@@ -180,195 +286,169 @@ let utf8_to_utf16_bytes s =
   in
   loop 0
 
-(* Build a mapping from UTF-16 code unit index to UTF-8 byte index *)
-let build_utf16_to_utf8_map s =
+(* Mapping between UTF-16 code unit indices and UTF-8 byte indices of a
+   string: two parallel sorted arrays with one entry per code point plus a
+   final sentinel (u16 length, byte length). *)
+type utf16_map = { u16 : int array; u8 : int array }
+
+let build_utf16_map s =
   let len = Stdlib.String.length s in
-  let map = ref [] in
-  let utf16_idx = ref 0 in
-  let rec loop i =
+  (* count code points *)
+  let rec count i n =
+    if i >= len then n
+    else
+      count
+        (i + Uchar.utf_decode_length (Stdlib.String.get_utf_8_uchar s i))
+        (n + 1)
+  in
+  let entries = count 0 0 in
+  let u16 = Array.make (entries + 1) 0 in
+  let u8 = Array.make (entries + 1) 0 in
+  let rec fill i u16_idx entry =
     if i >= len then begin
-      map := (!utf16_idx, i) :: !map;
-      Array.of_list (List.rev !map)
+      u16.(entry) <- u16_idx;
+      u8.(entry) <- i
     end
-    else
+    else begin
       let d = Stdlib.String.get_utf_8_uchar s i in
-      let u = Uchar.utf_decode_uchar d in
-      map := (!utf16_idx, i) :: !map;
-      let code = Uchar.to_int u in
-      if code < 0x10000 then incr utf16_idx else utf16_idx := !utf16_idx + 2;
-      (* Surrogate pair *)
-      loop (i + Uchar.utf_decode_length d)
+      let code = Uchar.to_int (Uchar.utf_decode_uchar d) in
+      u16.(entry) <- u16_idx;
+      u8.(entry) <- i;
+      let units = if code >= 0x10000 then 2 else 1 in
+      fill (i + Uchar.utf_decode_length d) (u16_idx + units) (entry + 1)
+    end
   in
-  loop 0
+  fill 0 0 0;
+  { u16; u8 }
 
-(* Convert UTF-16 index to UTF-8 byte index using the map *)
-let utf16_to_utf8_index map utf16_idx =
-  (* Binary search or linear scan *)
-  let rec find i =
-    if i >= Array.length map then snd map.(Array.length map - 1)
-    else
-      let u16, u8 = map.(i) in
-      if u16 = utf16_idx then u8
-      else if u16 > utf16_idx then if i = 0 then 0 else snd map.(i - 1)
-      else find (i + 1)
-  in
-  find 0
+let utf16_length_of_map map = map.u16.(Array.length map.u16 - 1)
 
-(* Convert UTF-8 byte index to UTF-16 code unit index *)
-let utf8_to_utf16_index s utf8_idx =
+(* Largest entry with u16 <= target; a UTF-16 index falling inside a
+   surrogate pair maps to the byte offset of the pair's code point. *)
+let utf16_to_utf8_index map target =
+  let lo = ref 0 and hi = ref (Array.length map.u16 - 1) in
+  while !lo < !hi do
+    let mid = (!lo + !hi + 1) / 2 in
+    if map.u16.(mid) <= target then lo := mid else hi := mid - 1
+  done;
+  map.u8.(!lo)
+
+let fill_carray_of_string s =
   let len = Stdlib.String.length s in
-  let utf16_idx = ref 0 in
-  let rec loop i =
-    if i >= utf8_idx || i >= len then !utf16_idx
-    else
-      let d = Stdlib.String.get_utf_8_uchar s i in
-      let u = Uchar.utf_decode_uchar d in
-      let code = Uchar.to_int u in
-      if code < 0x10000 then incr utf16_idx else utf16_idx := !utf16_idx + 2;
-      (* Surrogate pair *)
-      loop (i + Uchar.utf_decode_length d)
-  in
-  loop 0
+  let arr = Ctypes.CArray.make Ctypes.uint8_t len in
+  for i = 0 to len - 1 do
+    Ctypes.CArray.set arr i
+      (Unsigned.UInt8.of_int (Char.code (Stdlib.String.get s i)))
+  done;
+  arr
 
-(* exec is not a binding to lre_exec but an implementation of `js_regexp_exec` *)
-let exec regexp input =
+(* exec is not a direct binding to lre_exec but an implementation of
+   js_regexp_exec from quickjs.c *)
+let exec ?timeout_ms regexp input =
   let capture_count = Libregexp.get_capture_count regexp.bc in
   let capture_size = capture_count * 2 in
   let capture = Ctypes.CArray.make (Ctypes.ptr Ctypes.uint8_t) capture_size in
   let start_capture = Ctypes.CArray.start capture in
 
-  (* Check if we need Unicode mode (pattern has non-ASCII or unicode flag) *)
-  let use_unicode =
-    unicode regexp
-    || needs_unicode_mode regexp.source
-    || needs_unicode_mode input
-  in
-
-  (* Create buffer and keep it alive - bufp must not go out of scope before lre_exec *)
-  let bufp, matching_length, shift, utf16_map =
-    if use_unicode then
-      (* Convert UTF-8 input to UTF-16 for proper Unicode matching *)
+  (* Pure ASCII input can use the engine's 8-bit path where byte index =
+     UTF-16 index. Any other input is matched as UTF-16 code units. *)
+  let use_utf16 = not (is_ascii input) in
+  let bufp, matching_length, buffer_type, utf16_map =
+    if use_utf16 then begin
+      let map = build_utf16_map input in
       let utf16_str = utf8_to_utf16_bytes input in
-      let utf16_len = Stdlib.String.length utf16_str in
-      let bytes_list =
-        List.init utf16_len (fun i ->
-            Unsigned.UInt8.of_int (Char.code (Stdlib.String.get utf16_str i)))
-      in
-      let bufp = Ctypes.CArray.of_list Ctypes.uint8_t bytes_list in
-      let map = build_utf16_to_utf8_map input in
-      (bufp, utf16_len / 2, 1, Some map)
-    else
-      (* ASCII-only: use bytes directly *)
-      let bytes_list =
-        List.init (Stdlib.String.length input) (fun i ->
-            Unsigned.UInt8.of_int (Char.code (Stdlib.String.get input i)))
-      in
-      let bufp = Ctypes.CArray.of_list Ctypes.uint8_t bytes_list in
-      (bufp, Stdlib.String.length input, 0, None)
+      (fill_carray_of_string utf16_str, utf16_length_of_map map, 1, Some map)
+    end
+    else (fill_carray_of_string input, Stdlib.String.length input, 0, None)
   in
   let buffer = Ctypes.CArray.start bufp in
 
-  let last_index =
-    match global regexp || sticky regexp with
-    | true ->
-        if use_unicode then
-          (* Convert UTF-8 byte position to UTF-16 code unit position *)
-          utf8_to_utf16_index input regexp.last_index
-        else regexp.last_index
-    | false -> 0
+  let start_index =
+    if global regexp || sticky regexp then regexp.last_index else 0
   in
 
-  (* Check if last_index is beyond string length (QuickJS does this check) *)
-  if last_index > matching_length then (
-    (* No match possible - reset last_index and return empty result *)
-    (match sticky regexp || global regexp with
-    | true -> regexp.last_index <- 0
-    | false -> ());
-    Ok { captures = [||]; input; index = 0; groups = [] })
-  else
-    let exec_result =
-      Libregexp.exec start_capture regexp.bc buffer last_index matching_length
-        shift Ctypes.null
+  if start_index > matching_length then begin
+    (* No match possible: reset last_index like JavaScript does *)
+    if global regexp || sticky regexp then regexp.last_index <- 0;
+    None
+  end
+  else begin
+    let deadline =
+      match timeout_ms with
+      | None -> None
+      | Some ms ->
+          Some (Ctypes.allocate Ctypes.double (Libregexp.now_ms () +. ms))
     in
-    (* Keep bufp alive until after lre_exec completes *)
-    let _ = bufp in
-
+    let exec_result =
+      Libregexp.exec start_capture regexp.bc buffer start_index matching_length
+        buffer_type deadline
+    in
     match exec_result with
     | 1 ->
-        let substrings = Array.make capture_count "" in
-        let i = ref 0 in
-        let index = ref 0 in
-        let groups = ref [] in
-        let group_name_ptr = ref (Libregexp.get_groupnames regexp.bc) in
-        while !i < capture_size - 1 do
-          let start_ptr = Ctypes.CArray.get capture !i in
-          let end_ptr = Ctypes.CArray.get capture (!i + 1) in
-          let raw_start = Ctypes.ptr_diff buffer start_ptr in
-          let raw_length = Ctypes.ptr_diff start_ptr end_ptr in
-
-          (* Convert indices based on mode *)
-          let start_index, length =
-            match utf16_map with
-            | Some map ->
-                (* UTF-16 mode: convert indices back to UTF-8 byte positions *)
-                let u16_start = raw_start / 2 in
-                let u16_end = u16_start + (raw_length / 2) in
-                let u8_start = utf16_to_utf8_index map u16_start in
-                let u8_end = utf16_to_utf8_index map u16_end in
-                (u8_start, u8_end - u8_start)
-            | None ->
-                (* ASCII mode: indices are byte positions *)
-                (raw_start, raw_length)
-          in
-
-          (* Only set index on first capture (the full match) *)
-          if !i = 0 then index := start_index;
-          let substring =
-            match Stdlib.String.sub input start_index length with
-            | sub -> sub
-            | exception _ -> ""
-          in
-          (* Store the captured substring *)
-          substrings.(!i / 2) <- substring;
-          (* Update the last_index *)
-          regexp.last_index <- start_index + length;
-
-          (* if (\*group_name_ptr) { *)
-          (match !group_name_ptr with
-          (* if (group_name_ptr && i > 0) { *)
-          | Some pointer when !i > 0 ->
-              (*
-              if (JS_DefinePropertyValueStr(ctx, groups, group_name_ptr, JS_DupValue(ctx, val), prop_flags) < 0) {
-                  JS_FreeValue(ctx, val);
-                  goto fail;
-              }
-            *)
-              (* store the group name and its captured value, but only if named *)
-              let name_len = strlen pointer in
-              (if name_len > 0 then
-                 let current_group_name =
-                   Ctypes.string_from_ptr ~length:name_len pointer
-                 in
-                 groups := (current_group_name, substring) :: !groups);
-              (* group_name_ptr += strlen(group_name_ptr) + 1; *)
-              let next_group_name_ptr = Ctypes.( +@ ) pointer (name_len + 1) in
-              if Ctypes.is_null next_group_name_ptr then group_name_ptr := None
-              else group_name_ptr := Some next_group_name_ptr
-          | None | Some _ -> ());
-          (* Incement the index *)
-          i := !i + 2
-        done;
-        Ok { captures = substrings; input; index = !index; groups = !groups }
+        (* Convert a byte offset into the matching buffer to a UTF-16 code
+           unit index, and a UTF-16 index to a UTF-8 byte index for
+           substring extraction. *)
+        let to_utf16_index raw_bytes =
+          match utf16_map with Some _ -> raw_bytes / 2 | None -> raw_bytes
+        in
+        let to_utf8_index u16_index =
+          match utf16_map with
+          | Some map -> utf16_to_utf8_index map u16_index
+          | None -> u16_index
+        in
+        let captures =
+          Array.init capture_count (fun group ->
+              let start_ptr = Ctypes.CArray.get capture (group * 2) in
+              let end_ptr = Ctypes.CArray.get capture ((group * 2) + 1) in
+              if Ctypes.is_null start_ptr || Ctypes.is_null end_ptr then
+                (* Group did not participate in the match *)
+                None
+              else
+                let u16_start =
+                  to_utf16_index (Ctypes.ptr_diff buffer start_ptr)
+                in
+                let u16_end = to_utf16_index (Ctypes.ptr_diff buffer end_ptr) in
+                let u8_start = to_utf8_index u16_start in
+                let u8_end = to_utf8_index u16_end in
+                Some (Stdlib.String.sub input u8_start (u8_end - u8_start)))
+        in
+        let match_start =
+          to_utf16_index (Ctypes.ptr_diff buffer (Ctypes.CArray.get capture 0))
+        in
+        let match_end =
+          to_utf16_index (Ctypes.ptr_diff buffer (Ctypes.CArray.get capture 1))
+        in
+        (* Only global/sticky regexps advance lastIndex, and only based on
+           the full match (group 0) *)
+        if global regexp || sticky regexp then regexp.last_index <- match_end;
+        let groups =
+          match Libregexp.get_groupnames regexp.bc with
+          | None -> []
+          | Some first_name ->
+              (* The buffer holds one NUL-terminated entry per capture group
+                 1..n; unnamed groups have an empty entry. *)
+              let rec walk ptr group acc =
+                if group >= capture_count then List.rev acc
+                else
+                  let name_len = strlen ptr in
+                  let acc =
+                    if name_len > 0 then
+                      let name = Ctypes.string_from_ptr ~length:name_len ptr in
+                      (name, captures.(group)) :: acc
+                    else acc
+                  in
+                  walk (Ctypes.( +@ ) ptr (name_len + 1)) (group + 1) acc
+              in
+              walk first_name 1 []
+        in
+        Some { captures; index = match_start; input; groups }
     | 0 ->
-        (* When there's no matches left, last_index goes back to 0 *)
-        (match sticky regexp || global regexp with
-        | true -> regexp.last_index <- 0
-        | false -> ());
-        Ok { captures = [||]; input; index = 0; groups = [] }
-    | _ (* -1 *) -> Error "Error"
+        (* No match: lastIndex resets for global/sticky regexps *)
+        if global regexp || sticky regexp then regexp.last_index <- 0;
+        None
+    | -2 (* LRE_RET_TIMEOUT *) -> raise Timeout
+    | _ (* -1, LRE_RET_MEMORY_ERROR *) -> raise Out_of_memory
+  end
 
-let test regexp input =
-  let result = exec regexp input in
-  match result with
-  | Ok result -> Array.length result.captures > 0
-  | Error _ -> false
+let test ?timeout_ms regexp input =
+  match exec ?timeout_ms regexp input with Some _ -> true | None -> false
