@@ -36,5 +36,8 @@
 
   ;; Dev dependencies
   (ocaml-lsp-server :with-dev-setup)
-  (ocamlformat :with-dev-setup)
+  (ocamlformat
+   (and
+    (= 0.28.1)
+    :with-dev-setup))
 ))
