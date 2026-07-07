@@ -80,6 +80,53 @@ val is_whitespace : Uchar.t -> bool
     Includes ASCII space, tab, newline, and Unicode spaces like U+00A0 (NBSP).
 *)
 
+(** {1 Character Sets}
+
+    Lookups into the Unicode property tables QuickJS uses for regexp [\p{...}]
+    escapes: Script, Script_Extensions, General_Category and the binary
+    properties. Names are the canonical Unicode names and their aliases, matched
+    case-sensitively, exactly like JavaScript's [\p{...}]. *)
+
+(** A set of Unicode code points, stored as sorted disjoint ranges. *)
+module CharSet : sig
+  type t
+
+  val mem : Uchar.t -> t -> bool
+  (** [mem c set] tests whether code point [c] belongs to [set]. *)
+
+  val ranges : t -> (int * int) array
+  (** [ranges set] returns the set as inclusive code point ranges
+      [(first, last)], sorted by increasing value and disjoint. Ranges are plain
+      ints rather than [Uchar.t] because some sets contain surrogate code points
+      (e.g. General_Category [Cs]). *)
+end
+
+val script : ?extensions:bool -> string -> CharSet.t option
+(** [script ?extensions name] returns the set of code points whose Script
+    property is [name], or [None] if [name] is not a known script. Accepts long
+    and short names ("Greek" or "Grek"). With [~extensions:true] the
+    Script_Extensions property is used instead, like JavaScript's
+    [\p{Script_Extensions=...}].
+
+    Example:
+    {[
+      let greek = Option.get (Unicode.script "Greek") in
+      assert (Unicode.CharSet.mem (Uchar.of_int 0x03B1) greek)
+      (* α *)
+    ]} *)
+
+val general_category : string -> CharSet.t option
+(** [general_category name] returns the set of code points whose
+    General_Category is [name], or [None] if [name] is not a known category.
+    Accepts short and long names ("Lu" or "Uppercase_Letter"), including the
+    grouped categories ("L", "Letter", ...), like JavaScript's [\p{L}]. *)
+
+val binary_property : string -> CharSet.t option
+(** [binary_property name] returns the set of code points with the given binary
+    property, or [None] if [name] is not a known property. Accepts names like
+    "Alphabetic", "White_Space", "Emoji" and their aliases, like JavaScript's
+    [\p{Alphabetic}]. *)
+
 (** {1 Regex Support} *)
 
 val canonicalize : ?unicode:bool -> Uchar.t -> Uchar.t

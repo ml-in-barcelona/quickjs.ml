@@ -190,6 +190,128 @@ let fold_case_char_expansion () =
     [ Char.code 'a' ]
     (List.map Uchar.to_int (Unicode.fold_case_char (Uchar.of_char 'A')))
 
+(* ===================================================================
+   Unicode character sets - Script / General_Category / binary properties
+   (the tables behind JavaScript's \p{...})
+   =================================================================== *)
+
+let char_set_exn name = function
+  | Some set -> set
+  | None -> Alcotest.fail (Printf.sprintf "%s: expected a char set" name)
+
+let script_lookup () =
+  let greek = char_set_exn "Greek" (Unicode.script "Greek") in
+  (* α GREEK SMALL LETTER ALPHA *)
+  assert_bool (Unicode.CharSet.mem (Uchar.of_int 0x03B1) greek) true;
+  (* U+1F00 GREEK SMALL LETTER ALPHA WITH PSILI (Extended Greek block) *)
+  assert_bool (Unicode.CharSet.mem (Uchar.of_int 0x1F00) greek) true;
+  assert_bool (Unicode.CharSet.mem (Uchar.of_char 'a') greek) false
+
+let script_short_name_alias () =
+  (* \p{Script=Grek} and \p{Script=Greek} are the same set *)
+  let long = char_set_exn "Greek" (Unicode.script "Greek") in
+  let short = char_set_exn "Grek" (Unicode.script "Grek") in
+  Alcotest.(check (array (pair int int)))
+    "long and short names give the same ranges"
+    (Unicode.CharSet.ranges long)
+    (Unicode.CharSet.ranges short)
+
+let script_extensions () =
+  (* U+00B7 MIDDLE DOT: Script=Common, but Greek is in Script_Extensions *)
+  let middle_dot = Uchar.of_int 0x00B7 in
+  let script_only = char_set_exn "Greek" (Unicode.script "Greek") in
+  let with_ext =
+    char_set_exn "Greek ext" (Unicode.script ~extensions:true "Greek")
+  in
+  assert_bool (Unicode.CharSet.mem middle_dot script_only) false;
+  assert_bool (Unicode.CharSet.mem middle_dot with_ext) true
+
+let script_unknown () =
+  (match Unicode.script "NotAScript" with
+  | None -> ()
+  | Some _ -> Alcotest.fail "unknown script must be None");
+  (* names are case-sensitive, like JavaScript's \p{...} *)
+  match Unicode.script "greek" with
+  | None -> ()
+  | Some _ -> Alcotest.fail "script names are case-sensitive"
+
+let general_category_lookup () =
+  let upper = char_set_exn "Lu" (Unicode.general_category "Lu") in
+  assert_bool (Unicode.CharSet.mem (Uchar.of_char 'A') upper) true;
+  assert_bool (Unicode.CharSet.mem (Uchar.of_char 'a') upper) false;
+  (* É *)
+  assert_bool (Unicode.CharSet.mem (Uchar.of_int 0x00C9) upper) true
+
+let general_category_aliases () =
+  (* \p{Lu} = \p{Uppercase_Letter} *)
+  let short = char_set_exn "Lu" (Unicode.general_category "Lu") in
+  let long =
+    char_set_exn "Uppercase_Letter"
+      (Unicode.general_category "Uppercase_Letter")
+  in
+  Alcotest.(check (array (pair int int)))
+    "short and long names give the same ranges"
+    (Unicode.CharSet.ranges short)
+    (Unicode.CharSet.ranges long)
+
+let general_category_grouped () =
+  (* \p{L} groups Lu|Ll|Lt|Lm|Lo *)
+  let letter = char_set_exn "L" (Unicode.general_category "L") in
+  assert_bool (Unicode.CharSet.mem (Uchar.of_char 'A') letter) true;
+  assert_bool (Unicode.CharSet.mem (Uchar.of_char 'a') letter) true;
+  (* 中 *)
+  assert_bool (Unicode.CharSet.mem (Uchar.of_int 0x4E2D) letter) true;
+  assert_bool (Unicode.CharSet.mem (Uchar.of_char '0') letter) false
+
+let general_category_surrogates () =
+  (* \p{Cs}: ranges may contain surrogate code points, hence int ranges *)
+  let surrogates = char_set_exn "Cs" (Unicode.general_category "Cs") in
+  Alcotest.(check (array (pair int int)))
+    "Cs is exactly the surrogate range"
+    [| (0xD800, 0xDFFF) |]
+    (Unicode.CharSet.ranges surrogates)
+
+let general_category_unknown () =
+  match Unicode.general_category "Xx" with
+  | None -> ()
+  | Some _ -> Alcotest.fail "unknown category must be None"
+
+let binary_property_lookup () =
+  let alpha =
+    char_set_exn "Alphabetic" (Unicode.binary_property "Alphabetic")
+  in
+  assert_bool (Unicode.CharSet.mem (Uchar.of_char 'a') alpha) true;
+  assert_bool (Unicode.CharSet.mem (Uchar.of_char '1') alpha) false;
+  let ws = char_set_exn "White_Space" (Unicode.binary_property "White_Space") in
+  assert_bool (Unicode.CharSet.mem (Uchar.of_char ' ') ws) true;
+  (* U+00A0 NO-BREAK SPACE *)
+  assert_bool (Unicode.CharSet.mem (Uchar.of_int 0x00A0) ws) true;
+  assert_bool (Unicode.CharSet.mem (Uchar.of_char 'a') ws) false
+
+let binary_property_emoji () =
+  let emoji = char_set_exn "Emoji" (Unicode.binary_property "Emoji") in
+  (* 😀 U+1F600 *)
+  assert_bool (Unicode.CharSet.mem (Uchar.of_int 0x1F600) emoji) true;
+  assert_bool (Unicode.CharSet.mem (Uchar.of_char 'a') emoji) false
+
+let binary_property_unknown () =
+  match Unicode.binary_property "NotAProperty" with
+  | None -> ()
+  | Some _ -> Alcotest.fail "unknown property must be None"
+
+let char_set_ranges_sorted_disjoint () =
+  let greek = char_set_exn "Greek" (Unicode.script "Greek") in
+  let ranges = Unicode.CharSet.ranges greek in
+  assert_bool (Array.length ranges > 0) true;
+  Array.iteri
+    (fun i (first, last) ->
+      assert_bool (first <= last) true;
+      if i > 0 then
+        let _, prev_last = ranges.(i - 1) in
+        (* strictly increasing and disjoint *)
+        assert_bool (prev_last < first) true)
+    ranges
+
 let tests =
   [
     (* is_cased *)
@@ -226,4 +348,19 @@ let tests =
     test "fold_case: idempotent" fold_case_idempotent;
     test "fold_case: Cherokee folds to uppercase" fold_case_cherokee;
     test "fold_case_char: expansion" fold_case_char_expansion;
+    (* character sets *)
+    test "script: lookup and membership" script_lookup;
+    test "script: short name alias" script_short_name_alias;
+    test "script: extensions" script_extensions;
+    test "script: unknown and case-sensitivity" script_unknown;
+    test "general_category: lookup" general_category_lookup;
+    test "general_category: aliases" general_category_aliases;
+    test "general_category: grouped L" general_category_grouped;
+    test "general_category: surrogates in Cs" general_category_surrogates;
+    test "general_category: unknown" general_category_unknown;
+    test "binary_property: Alphabetic and White_Space" binary_property_lookup;
+    test "binary_property: Emoji" binary_property_emoji;
+    test "binary_property: unknown" binary_property_unknown;
+    test "char set ranges are sorted and disjoint"
+      char_set_ranges_sorted_disjoint;
   ]

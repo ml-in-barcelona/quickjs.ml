@@ -43,3 +43,18 @@ let normalize src len n_type dst =
 
 (** Free buffer allocated by [normalize] *)
 let normalize_free ptr = Quickjs_bindings.C.Functions.unicode_normalize_free ptr
+
+(** {2 Character Ranges} *)
+
+(** Look up a Unicode character range table by name. kind: 0 = Script, 1 =
+    Script_Extensions, 2 = General_Category, 3 = binary property. On success
+    returns the number of points (always even) with the buffer stored in [dst];
+    each pair [points.(2i), points.(2i+1)] encodes a half-open interval. Release
+    the buffer with [char_range_free]. Returns -1 on memory error, -2 when the
+    name is unknown. *)
+let char_range kind name dst =
+  Quickjs_bindings.C.Functions.unicode_char_range_shim kind name dst
+
+(** Free buffer returned by [char_range] *)
+let char_range_free ptr =
+  Quickjs_bindings.C.Functions.unicode_char_range_free ptr

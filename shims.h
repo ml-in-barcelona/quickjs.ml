@@ -34,6 +34,19 @@ int unicode_normalize_shim(const uint32_t *src, int src_len, int n_type,
 /* Free buffer allocated by unicode_normalize_shim. */
 void unicode_normalize_free(uint32_t *ptr);
 
+/* Look up a Unicode character range table by name.
+   kind: 0 = Script, 1 = Script_Extensions, 2 = General_Category,
+   3 = binary property.
+   On success returns the number of points (always even) and stores the
+   points buffer in *out_points (release with unicode_char_range_free;
+   may be NULL when the result is empty). Points encode half-open
+   intervals: [points[2i], points[2i+1]).
+   Returns -1 on memory error, -2 when the name is unknown. */
+int unicode_char_range_shim(int kind, const char *name, uint32_t **out_points);
+
+/* Free buffer returned by unicode_char_range_shim. */
+void unicode_char_range_free(uint32_t *points);
+
 /* Wrapper for js_atod - reports consumed bytes as an offset. */
 double js_atod_shim(const char *str, int *poffset, int radix, int flags,
                     void *tmp_mem);

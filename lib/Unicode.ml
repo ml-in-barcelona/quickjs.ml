@@ -171,6 +171,67 @@ let canonicalize ?(unicode = true) c =
   let result = Libunicode.canonicalize cp unicode in
   if result >= 0 && result <= 0x10FFFF then Uchar.of_int result else c
 
+(* Character Sets - Script / General_Category / binary properties *)
+
+module CharSet = struct
+  (* Inclusive code point ranges, sorted by increasing value and disjoint.
+     Stored as ints (not Uchar.t) because some sets contain surrogate code
+     points, e.g. General_Category Cs. *)
+  type t = { ranges : (int * int) array }
+
+  let ranges t = Array.copy t.ranges
+
+  let mem c t =
+    let cp = Uchar.to_int c in
+    let lo = ref 0 and hi = ref (Array.length t.ranges - 1) in
+    let found = ref false in
+    while (not !found) && !lo <= !hi do
+      let mid = (!lo + !hi) / 2 in
+      let first, last = t.ranges.(mid) in
+      if cp < first then hi := mid - 1
+      else if cp > last then lo := mid + 1
+      else found := true
+    done;
+    !found
+end
+
+(* kind: 0 = Script, 1 = Script_Extensions, 2 = General_Category,
+   3 = binary property (see unicode_char_range_shim) *)
+let char_range_lookup kind name =
+  let dst =
+    Ctypes.allocate
+      (Ctypes.ptr Ctypes.uint32_t)
+      (Ctypes.from_voidp Ctypes.uint32_t Ctypes.null)
+  in
+  let len = Libunicode.char_range kind name dst in
+  if len = -2 then None
+  else if len < 0 then raise Out_of_memory
+  else begin
+    let points = Ctypes.( !@ ) dst in
+    (* The buffer holds half-open intervals [points.(2i), points.(2i+1));
+       store them as inclusive ranges. *)
+    let ranges =
+      Array.init (len / 2) (fun i ->
+          let first =
+            Unsigned.UInt32.to_int
+              (Ctypes.( !@ ) (Ctypes.( +@ ) points (2 * i)))
+          in
+          let last =
+            Unsigned.UInt32.to_int
+              (Ctypes.( !@ ) (Ctypes.( +@ ) points ((2 * i) + 1)))
+          in
+          (first, last - 1))
+    in
+    Libunicode.char_range_free points;
+    Some { CharSet.ranges }
+  end
+
+let script ?(extensions = false) name =
+  char_range_lookup (if extensions then 1 else 0) name
+
+let general_category name = char_range_lookup 2 name
+let binary_property name = char_range_lookup 3 name
+
 (* Normalization *)
 let normalize form s =
   let cps = utf8_to_codepoints s in

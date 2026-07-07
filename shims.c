@@ -143,6 +143,36 @@ void unicode_normalize_free(uint32_t *ptr)
     free(ptr);
 }
 
+/* Fills a CharRange from one of libunicode's property tables and hands the
+   points buffer to the caller. The buffer is allocated with lre_realloc
+   (plain realloc), so ownership can be transferred and released with
+   free(). */
+int unicode_char_range_shim(int kind, const char *name, uint32_t **out_points)
+{
+    CharRange cr;
+    int ret;
+
+    cr_init(&cr, NULL, lre_realloc);
+    switch (kind) {
+    case 0: ret = unicode_script(&cr, name, false); break;
+    case 1: ret = unicode_script(&cr, name, true); break;
+    case 2: ret = unicode_general_category(&cr, name); break;
+    case 3: ret = unicode_prop(&cr, name); break;
+    default: ret = -2; break;
+    }
+    if (ret) {
+        cr_free(&cr);
+        return ret;
+    }
+    *out_points = cr.points; /* ownership transferred */
+    return cr.len;
+}
+
+void unicode_char_range_free(uint32_t *points)
+{
+    free(points);
+}
+
 /* ===========================================================================
    dtoa shims
    =========================================================================== */

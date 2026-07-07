@@ -153,6 +153,26 @@ module Functions (F : Ctypes.FOREIGN) = struct
     F.foreign "unicode_normalize_free"
       (Ctypes.ptr Ctypes.uint32_t @-> F.returning Ctypes.void)
 
+  (* --- Character Ranges (Script / General_Category / binary properties) --- *)
+
+  (** Look up a Unicode character range table by name (via C shim).
+      kind: 0 = Script, 1 = Script_Extensions, 2 = General_Category,
+      3 = binary property.
+      On success returns the number of points (always even) with the buffer
+      in *out_points (half-open intervals [points[2i], points[2i+1])).
+      Returns -1 on memory error, -2 when the name is unknown. *)
+  let unicode_char_range_shim =
+    F.foreign "unicode_char_range_shim"
+      (Ctypes.int                     (* int kind *)
+      @-> Ctypes.string               (* const char *name *)
+      @-> Ctypes.ptr (Ctypes.ptr Ctypes.uint32_t)  (* [out] uint32_t **out_points *)
+      @-> F.returning Ctypes.int)
+
+  (** Free buffer allocated by unicode_char_range_shim *)
+  let unicode_char_range_free =
+    F.foreign "unicode_char_range_free"
+      (Ctypes.ptr Ctypes.uint32_t @-> F.returning Ctypes.void)
+
   (* =========================================================================
      dtoa.c - Number ↔ String Conversion
 
