@@ -168,7 +168,8 @@ let byte_index_of_utf16 s utf16_index =
   loop 0 0
 
 (** Convert array of UTF-16 code units back to UTF-8 string. Tail-recursive for
-    stack safety. Handles surrogate pairs correctly. *)
+    stack safety. Surrogate pairs combine into their code point; unpaired
+    surrogates become U+FFFD since UTF-8 cannot represent them. *)
 let from_utf16_array arr =
   let len = Array.length arr in
   if len = 0 then ""
@@ -178,16 +179,16 @@ let from_utf16_array arr =
       if i >= len then Stdlib.Buffer.contents buf
       else
         let code = arr.(i) in
-        if code >= 0xD800 && code <= 0xDBFF && i + 1 < len then begin
-          (* High surrogate, check for low *)
-          let low = arr.(i + 1) in
+        if code >= 0xD800 && code <= 0xDBFF then begin
+          (* High surrogate: pairs with a following low surrogate *)
+          let low = if i + 1 < len then arr.(i + 1) else 0 in
           if low >= 0xDC00 && low <= 0xDFFF then begin
             let cp = 0x10000 + ((code - 0xD800) * 0x400) + (low - 0xDC00) in
             Stdlib.Buffer.add_utf_8_uchar buf (Uchar.of_int cp);
             loop (i + 2)
           end
           else begin
-            (* Lone high surrogate - output as-is (invalid but we handle it) *)
+            (* Lone high surrogate - output replacement character *)
             Stdlib.Buffer.add_utf_8_uchar buf Uchar.rep;
             loop (i + 1)
           end

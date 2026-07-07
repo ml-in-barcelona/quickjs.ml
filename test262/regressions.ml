@@ -135,6 +135,17 @@ let split_regex_unicode () =
 
 let search_unicode () = assert_int (String.Prototype.search "b" "ébé") 1
 
+let slice_splits_surrogate_pair () =
+  (* "😀".slice(0, 1) yields the lone high surrogate in JavaScript; UTF-8
+     cannot represent it, so it becomes U+FFFD. Used to raise
+     Invalid_argument ("D83D is not a Unicode scalar value"). *)
+  let high = String.Prototype.slice ~start:0 ~end_:1 "😀" in
+  assert_string high "\u{FFFD}";
+  assert_int (String.Prototype.length high) 1;
+  assert_string (String.Prototype.slice ~start:1 ~end_:2 "😀") "\u{FFFD}";
+  assert_string (String.Prototype.substring ~start:0 ~end_:1 "😀") "\u{FFFD}";
+  assert_string (String.Prototype.substr ~start:0 ~length:1 "😀") "\u{FFFD}"
+
 (* ===================================================================
    split_regex spec semantics
    =================================================================== *)
@@ -367,6 +378,8 @@ let tests =
     test "utf16: exec index" exec_index_is_utf16;
     test "utf16: lastIndex" last_index_is_utf16;
     test "utf16: split_regex" split_regex_unicode;
+    test "utf16: slice splitting a surrogate pair yields U+FFFD"
+      slice_splits_surrogate_pair;
     test "utf16: search" search_unicode;
     test "split_regex: empty pattern" split_regex_empty_pattern;
     test "split_regex: empty input" split_regex_empty_input;
