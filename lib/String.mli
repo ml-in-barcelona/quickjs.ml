@@ -50,6 +50,31 @@ val byte_index_of_utf16 : string -> int -> int
     pair map to the byte offset of that character; out-of-range indices are
     clamped. Inverse of {!utf16_index_of_byte}. *)
 
+(** {1 Static methods} *)
+
+val from_char_code : int array -> string
+(** [from_char_code codes] builds a string from UTF-16 code units. Every value
+    is coerced with ToUint16 (kept modulo 2{^16}, so
+    [from_char_code [| 0x10041 |]] is ["A"]) and adjacent high/low surrogate
+    values combine into one code point: [from_char_code [| 0xD83D; 0xDE00 |]]
+    is ["😀"]. Equivalent to JavaScript's String.fromCharCode().
+
+    Unpaired surrogates become U+FFFD, since UTF-8 cannot represent them
+    (JavaScript builds a lone-surrogate string instead). *)
+
+val from_code_point : int array -> string
+(** [from_code_point code_points] builds a string from Unicode code points:
+    [from_code_point [| 0x1F600 |]] is ["😀"]. Equivalent to JavaScript's
+    String.fromCodePoint().
+
+    Surrogate halves given as separate code points pair up exactly like in
+    JavaScript ([from_code_point [| 0xD83D; 0xDE00 |]] is also ["😀"]);
+    unpaired surrogates become U+FFFD, since UTF-8 cannot represent them.
+
+    @raise Invalid_argument
+      if any value is outside [0]..[0x10FFFF], mirroring the RangeError
+      JavaScript throws. *)
+
 module Prototype : sig
   (** String.prototype methods *)
 

@@ -210,6 +210,42 @@ let from_utf16_array arr =
     loop 0
   end
 
+let from_char_code codes =
+  (* land 0xFFFF is ToUint16 *)
+  from_utf16_array (Array.map (fun code -> code land 0xFFFF) codes)
+
+(* Expanding to UTF-16 code units first makes adjacent surrogate halves pair
+   up, like in JavaScript. *)
+let from_code_point code_points =
+  Array.iter
+    (fun cp ->
+      if cp < 0 || cp > 0x10FFFF then
+        (* RangeError in JavaScript *)
+        invalid_arg
+          (Printf.sprintf "String.from_code_point: invalid code point %d" cp))
+    code_points;
+  let unit_count =
+    Array.fold_left
+      (fun count cp -> count + if cp >= 0x10000 then 2 else 1)
+      0 code_points
+  in
+  let units = Array.make unit_count 0 in
+  let idx = ref 0 in
+  Array.iter
+    (fun cp ->
+      if cp >= 0x10000 then begin
+        let cp' = cp - 0x10000 in
+        units.(!idx) <- 0xD800 lor (cp' lsr 10);
+        units.(!idx + 1) <- 0xDC00 lor (cp' land 0x3FF);
+        idx := !idx + 2
+      end
+      else begin
+        units.(!idx) <- cp;
+        incr idx
+      end)
+    code_points;
+  from_utf16_array units
+
 module Prototype = struct
   (** String.prototype methods *)
 

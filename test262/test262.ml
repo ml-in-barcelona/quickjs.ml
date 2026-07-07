@@ -23,6 +23,9 @@ let () =
       ("parseFloat", Parse_float.Parse.tests);
       (* parseInt tests *)
       ("parseInt", Parse_int.Parse.tests);
+      (* String static methods *)
+      ("String.fromCharCode", String.From_char_code.tests);
+      ("String.fromCodePoint", String.From_code_point.tests);
       (* String case tests *)
       ("String.prototype.toLowerCase", String.Prototype.To_lower_case.tests);
       ("String.prototype.toUpperCase", String.Prototype.To_upper_case.tests);
