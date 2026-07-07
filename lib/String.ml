@@ -958,8 +958,19 @@ module Prototype = struct
       loop s []
     end
 
+  (* JavaScript coerces the [limit] of split with ToUint32: negative values
+     wrap to huge positive values (behaving as "no limit") and multiples of
+     2^32 wrap to 0. Wrapped values that exceed OCaml's int capacity (only
+     possible on 32-bit platforms) clamp to max_int, which no reachable
+     array length attains. *)
+  let limit_to_uint32 limit =
+    let wrapped = Int64.logand (Int64.of_int limit) 0xFFFF_FFFFL in
+    if Int64.compare wrapped (Int64.of_int max_int) > 0 then max_int
+    else Int64.to_int wrapped
+
   let split_limit sep limit s =
-    if limit <= 0 then [||]
+    let limit = limit_to_uint32 limit in
+    if limit = 0 then [||]
     else if Stdlib.String.length sep = 0 then begin
       let arr = to_utf16_array s in
       let len = min limit (Array.length arr) in
@@ -981,12 +992,25 @@ module Prototype = struct
     end
 
   (** split by regex pattern. Capture groups are spliced into the result (as in
-      JavaScript); groups that did not participate contribute [""]. *)
-  let split_regex_nonempty re s =
+      JavaScript); a group that did not participate contributes [None], like
+      JavaScript's [undefined]. Every pushed entry (substring or capture) counts
+      toward [limit], and reaching it ends the split without the trailing
+      substring, per the spec. *)
+  let split_regex_nonempty ~limit re s =
     let s_len = utf16_length s in
     let parts = ref [] in
+    let count = ref 0 in
     let last_end = ref 0 in
     let continue = ref true in
+    let limited = ref false in
+    let push entry =
+      parts := entry :: !parts;
+      incr count;
+      if !count >= limit then begin
+        limited := true;
+        continue := false
+      end
+    in
     while !continue do
       match RegExp.exec re s with
       | None -> continue := false
@@ -1004,31 +1028,39 @@ module Prototype = struct
                  (ECMA-262 SplitMatch: only advancing matches split) *)
               ()
             else begin
-              parts := slice ~start:!last_end ~end_:idx s :: !parts;
-              for i = 1 to Array.length m.RegExp.captures - 1 do
-                let capture =
-                  match m.RegExp.captures.(i) with Some c -> c | None -> ""
-                in
-                parts := capture :: !parts
+              push (Some (slice ~start:!last_end ~end_:idx s));
+              let group = ref 1 in
+              while (not !limited) && !group < Array.length m.RegExp.captures do
+                push m.RegExp.captures.(!group);
+                incr group
               done;
               last_end := match_end
             end;
-            if match_str = "" then
+            if (not !limited) && match_str = "" then
               RegExp.set_last_index re (RegExp.last_index re + 1)
           end
     done;
-    parts := slice_from !last_end s :: !parts;
+    if not !limited then parts := Some (slice_from !last_end s) :: !parts;
     Array.of_list (List.rev !parts)
 
-  let split_regex pattern s =
-    let re = compile_exn ~fn:"split_regex" ~flags:"g" pattern in
-    if s = "" then
+  let split_regex_with_limit ~fn ~limit pattern s =
+    let re = compile_exn ~fn ~flags:"g" pattern in
+    (* Spec order: the limit check precedes the empty-string check *)
+    if limit = 0 then [||]
+    else if s = "" then
       (* Per spec: splitting the empty string yields [] when the separator
          matches it, and [""] otherwise *)
       match RegExp.exec re s with
       | Some _ -> [||]
-      | None -> [| s |]
-    else split_regex_nonempty re s
+      | None -> [| Some s |]
+    else split_regex_nonempty ~limit re s
+
+  let split_regex pattern s =
+    split_regex_with_limit ~fn:"split_regex" ~limit:max_int pattern s
+
+  let split_regex_limit pattern limit s =
+    split_regex_with_limit ~fn:"split_regex_limit"
+      ~limit:(limit_to_uint32 limit) pattern s
 end
 
 (* Character-level case conversion *)

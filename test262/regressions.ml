@@ -131,7 +131,7 @@ let last_index_is_utf16 () =
 
 let split_regex_unicode () =
   let parts = String.Prototype.split_regex "b" "ébé" in
-  assert_array parts [| "é"; "é" |]
+  assert_option_array parts [| Some "é"; Some "é" |]
 
 let search_unicode () = assert_int (String.Prototype.search "b" "ébé") 1
 
@@ -152,15 +152,26 @@ let slice_splits_surrogate_pair () =
 
 let split_regex_empty_pattern () =
   (* "ab".split(/(?:)/) is ["a"; "b"] per the spec's SplitMatch loop *)
-  assert_array (String.Prototype.split_regex "(?:)" "ab") [| "a"; "b" |]
+  assert_option_array
+    (String.Prototype.split_regex "(?:)" "ab")
+    [| Some "a"; Some "b" |]
 
 let split_regex_empty_input () =
   (* splitting "" yields [] when the separator matches it, [""] otherwise *)
-  assert_array (String.Prototype.split_regex "(?:)" "") [||];
-  assert_array (String.Prototype.split_regex "x" "") [| "" |]
+  assert_option_array (String.Prototype.split_regex "(?:)" "") [||];
+  assert_option_array (String.Prototype.split_regex "x" "") [| Some "" |]
 
 let split_regex_captures () =
-  assert_array (String.Prototype.split_regex "(\\d)" "a1b") [| "a"; "1"; "b" |]
+  assert_option_array
+    (String.Prototype.split_regex "(\\d)" "a1b")
+    [| Some "a"; Some "1"; Some "b" |]
+
+let split_regex_non_participating_capture () =
+  (* "ab".split(/(x)?(b)/) is ["a", undefined, "b", ""]: a group that did
+     not participate splices undefined (None), distinct from "" *)
+  assert_option_array
+    (String.Prototype.split_regex "(x)?(b)" "ab")
+    [| Some "a"; None; Some "b"; Some "" |]
 
 (* ===================================================================
    Replacement semantics ($` used to see already-replaced text)
@@ -384,6 +395,8 @@ let tests =
     test "split_regex: empty pattern" split_regex_empty_pattern;
     test "split_regex: empty input" split_regex_empty_input;
     test "split_regex: captures spliced" split_regex_captures;
+    test "split_regex: non-participating capture is None"
+      split_regex_non_participating_capture;
     test "replace_all: $` sees original" replace_all_dollar_backtick;
     test "replace_all: $' sees original" replace_all_dollar_quote;
     test "replace_regex_global: $` sees original"

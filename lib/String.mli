@@ -54,10 +54,10 @@ val byte_index_of_utf16 : string -> int -> int
 
 val from_char_code : int array -> string
 (** [from_char_code codes] builds a string from UTF-16 code units. Every value
-    is coerced with ToUint16 (kept modulo 2{^16}, so
+    is coerced with ToUint16 (kept modulo 2{^ 16}, so
     [from_char_code [| 0x10041 |]] is ["A"]) and adjacent high/low surrogate
-    values combine into one code point: [from_char_code [| 0xD83D; 0xDE00 |]]
-    is ["😀"]. Equivalent to JavaScript's String.fromCharCode().
+    values combine into one code point: [from_char_code [| 0xD83D; 0xDE00 |]] is
+    ["😀"]. Equivalent to JavaScript's String.fromCharCode().
 
     Unpaired surrogates become U+FFFD, since UTF-8 cannot represent them
     (JavaScript builds a lone-surrogate string instead). *)
@@ -68,8 +68,8 @@ val from_code_point : int array -> string
     String.fromCodePoint().
 
     Surrogate halves given as separate code points pair up exactly like in
-    JavaScript ([from_code_point [| 0xD83D; 0xDE00 |]] is also ["😀"]);
-    unpaired surrogates become U+FFFD, since UTF-8 cannot represent them.
+    JavaScript ([from_code_point [| 0xD83D; 0xDE00 |]] is also ["😀"]); unpaired
+    surrogates become U+FFFD, since UTF-8 cannot represent them.
 
     @raise Invalid_argument
       if any value is outside [0]..[0x10FFFF], mirroring the RangeError
@@ -300,12 +300,22 @@ module Prototype : sig
       String.prototype.split(). *)
 
   val split_limit : string -> int -> string -> string array
-  (** [split_limit separator limit s] splits with maximum [limit] parts. *)
+  (** [split_limit separator limit s] splits into at most [limit] parts. Like
+      JavaScript, [limit] is coerced with ToUint32: negative values wrap to huge
+      positive values and behave as "no limit". *)
 
-  val split_regex : string -> string -> string array
+  val split_regex : string -> string -> string option array
   (** [split_regex pattern s] splits by regex pattern. Capture groups are
-      spliced into the result, as in JavaScript; groups that did not participate
-      contribute [""].
+      spliced into the result, as in JavaScript; a group that did not
+      participate contributes [None] (JavaScript's [undefined]), which is
+      distinct from a group that matched the empty string ([Some ""]).
+      Substrings of [s] are always [Some].
+      @raise Invalid_argument if [pattern] is invalid. *)
+
+  val split_regex_limit : string -> int -> string -> string option array
+  (** [split_regex_limit pattern limit s] splits into at most [limit] entries.
+      Spliced capture groups count toward the limit and [limit] is coerced with
+      ToUint32, like JavaScript's [split(regexp, limit)].
       @raise Invalid_argument if [pattern] is invalid. *)
 end
 

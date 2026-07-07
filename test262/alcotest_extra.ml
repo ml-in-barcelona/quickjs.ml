@@ -44,6 +44,9 @@ let assert_negative_zero value =
 let assert_array left right =
   Alcotest.(check (array string)) "should be equal" right left
 
+let assert_option_array left right =
+  Alcotest.(check (array (option string))) "should be equal" right left
+
 (* ===== RegExp helpers ===== *)
 
 let regexp_compile re ~flags =

@@ -48,23 +48,65 @@ let limit_zero () =
   let result = String.Prototype.split_limit "," 0 "a,b,c" in
   assert_int (Array.length result) 0
 
+let limit_larger_than_parts () =
+  let result = String.Prototype.split_limit "," 100 "a,b" in
+  assert_array result [| "a"; "b" |]
+
+let negative_limit_is_to_uint32 () =
+  (* ToUint32(-1) is 4294967295: effectively no limit *)
+  assert_array
+    (String.Prototype.split_limit "," (-1) "a,b,c")
+    [| "a"; "b"; "c" |];
+  (* ToUint32(-(2^32) + 1) is 1 *)
+  assert_array
+    (String.Prototype.split_limit "," (-4294967295) "a,b,c")
+    [| "a" |]
+
+let limit_two_pow_32_wraps_to_zero () =
+  (* ToUint32(2^32) is 0 *)
+  assert_array (String.Prototype.split_limit "," 4294967296 "a,b,c") [||]
+
+let regex_with_limit () =
+  let result = String.Prototype.split_regex_limit "," 2 "a,b,c,d" in
+  assert_option_array result [| Some "a"; Some "b" |]
+
+let regex_limit_zero () =
+  assert_option_array (String.Prototype.split_regex_limit "," 0 "a,b,c") [||];
+  (* the limit check precedes the empty-string check *)
+  assert_option_array (String.Prototype.split_regex_limit "x" 0 "") [||]
+
+let regex_limit_counts_captures () =
+  (* Spliced capture groups count toward the limit:
+     "a,b,c".split(/(,)/, 2) is ["a", ","] *)
+  let result = String.Prototype.split_regex_limit "(,)" 2 "a,b,c" in
+  assert_option_array result [| Some "a"; Some "," |];
+  (* "a,b,c".split(/(,)/, 3) is ["a", ",", "b"] *)
+  let result = String.Prototype.split_regex_limit "(,)" 3 "a,b,c" in
+  assert_option_array result [| Some "a"; Some ","; Some "b" |]
+
+let regex_limit_negative_is_to_uint32 () =
+  let result = String.Prototype.split_regex_limit "," (-1) "a,b,c" in
+  assert_option_array result [| Some "a"; Some "b"; Some "c" |]
+
+let regex_limit_empty_pattern () =
+  (* "abc".split(/(?:)/, 2) is ["a", "b"] *)
+  let result = String.Prototype.split_regex_limit "(?:)" 2 "abc" in
+  assert_option_array result [| Some "a"; Some "b" |]
+
 let regex_separator () =
   let result = String.Prototype.split_regex "\\s+" "a b  c\td" in
-  assert_int (Array.length result) 4;
-  assert_string result.(0) "a";
-  assert_string result.(1) "b";
-  assert_string result.(2) "c";
-  assert_string result.(3) "d"
+  assert_option_array result [| Some "a"; Some "b"; Some "c"; Some "d" |]
 
 let regex_with_capture_groups () =
   (* Captured groups are included in result *)
   let result = String.Prototype.split_regex "(,)" "a,b,c" in
-  assert_int (Array.length result) 5;
-  assert_string result.(0) "a";
-  assert_string result.(1) ",";
-  assert_string result.(2) "b";
-  assert_string result.(3) ",";
-  assert_string result.(4) "c"
+  assert_option_array result
+    [| Some "a"; Some ","; Some "b"; Some ","; Some "c" |]
+
+let regex_non_participating_capture () =
+  (* "ab".split(/(x)?(b)/) is ["a", undefined, "b", ""] *)
+  let result = String.Prototype.split_regex "(x)?(b)" "ab" in
+  assert_option_array result [| Some "a"; None; Some "b"; Some "" |]
 
 let consecutive_separators () =
   let result = String.Prototype.split "," "a,,b" in
@@ -110,4 +152,15 @@ let tests =
     test "S15.5.4.14_A11: Unicode separator" unicode_separator;
     test "S15.5.4.14_A12: Unicode string empty separator"
       unicode_string_empty_separator;
+    test "non-participating capture is undefined"
+      regex_non_participating_capture;
+    test "S15.5.4.14_A4_T10: limit larger than parts" limit_larger_than_parts;
+    test "S15.5.4.14_A4_T22: negative limit is ToUint32"
+      negative_limit_is_to_uint32;
+    test "limit 2^32 wraps to zero" limit_two_pow_32_wraps_to_zero;
+    test "regex with limit" regex_with_limit;
+    test "regex limit zero" regex_limit_zero;
+    test "regex limit counts captures" regex_limit_counts_captures;
+    test "regex negative limit is ToUint32" regex_limit_negative_is_to_uint32;
+    test "regex limit with empty pattern" regex_limit_empty_pattern;
   ]
