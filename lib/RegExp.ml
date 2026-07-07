@@ -21,11 +21,17 @@ type t = {
   mutable last_index : int; (* UTF-16 code units *)
 }
 
+type match_indices = {
+  ranges : (int * int) option array; (* UTF-16 [start, end) *)
+  groups : (string * (int * int) option) list;
+}
+
 type match_result = {
   captures : string option array;
   index : int; (* UTF-16 code units *)
   input : string;
   groups : (string * string option) list;
+  indices : match_indices option; (* Some iff the 'd' flag is set *)
 }
 
 type compile_error =
@@ -249,10 +255,18 @@ let set_last_index regexp idx = regexp.last_index <- max 0 idx
 let source regexp = regexp.source
 let flags regexp = flags_to_string regexp.flags
 
-let group name result =
+let group name (result : match_result) =
   match List.assoc_opt name result.groups with
   | Some value -> value
   | None -> None
+
+let group_indices name (result : match_result) =
+  match result.indices with
+  | None -> None
+  | Some indices -> (
+      match List.assoc_opt name indices.groups with
+      | Some value -> value
+      | None -> None)
 
 (* Convert a UTF-8 string to UTF-16 code units, packed as bytes in the
    platform's native endianness (lre_exec reads the 16-bit buffer through
@@ -396,32 +410,41 @@ let exec ?timeout_ms regexp input =
           | Some map -> utf16_to_utf8_index map u16_index
           | None -> u16_index
         in
-        let captures =
+        (* UTF-16 [start, end) per group; None = did not participate.
+           Entry 0 is the full match. *)
+        let ranges =
           Array.init capture_count (fun group ->
               let start_ptr = Ctypes.CArray.get capture (group * 2) in
               let end_ptr = Ctypes.CArray.get capture ((group * 2) + 1) in
-              if Ctypes.is_null start_ptr || Ctypes.is_null end_ptr then
-                (* Group did not participate in the match *)
-                None
+              if Ctypes.is_null start_ptr || Ctypes.is_null end_ptr then None
               else
                 let u16_start =
                   to_utf16_index (Ctypes.ptr_diff buffer start_ptr)
                 in
                 let u16_end = to_utf16_index (Ctypes.ptr_diff buffer end_ptr) in
-                let u8_start = to_utf8_index u16_start in
-                let u8_end = to_utf8_index u16_end in
-                Some (Stdlib.String.sub input u8_start (u8_end - u8_start)))
+                Some (u16_start, u16_end))
         in
-        let match_start =
-          to_utf16_index (Ctypes.ptr_diff buffer (Ctypes.CArray.get capture 0))
+        let captures =
+          Array.map
+            (function
+              | None -> None
+              | Some (u16_start, u16_end) ->
+                  let u8_start = to_utf8_index u16_start in
+                  let u8_end = to_utf8_index u16_end in
+                  Some (Stdlib.String.sub input u8_start (u8_end - u8_start)))
+            ranges
         in
-        let match_end =
-          to_utf16_index (Ctypes.ptr_diff buffer (Ctypes.CArray.get capture 1))
+        let match_start, match_end =
+          (* The full match always participates when exec reports a match *)
+          match ranges.(0) with
+          | Some range -> range
+          | None -> assert false
         in
         (* Only global/sticky regexps advance lastIndex, and only based on
            the full match (group 0) *)
         if global regexp || sticky regexp then regexp.last_index <- match_end;
-        let groups =
+        (* (name, group number) pairs in source order *)
+        let named_groups =
           match Libregexp.get_groupnames regexp.bc with
           | None -> []
           | Some first_name ->
@@ -434,14 +457,30 @@ let exec ?timeout_ms regexp input =
                   let acc =
                     if name_len > 0 then
                       let name = Ctypes.string_from_ptr ~length:name_len ptr in
-                      (name, captures.(group)) :: acc
+                      (name, group) :: acc
                     else acc
                   in
                   walk (Ctypes.( +@ ) ptr (name_len + 1)) (group + 1) acc
               in
               walk first_name 1 []
         in
-        Some { captures; index = match_start; input; groups }
+        let groups =
+          List.map (fun (name, group) -> (name, captures.(group))) named_groups
+        in
+        let indices =
+          (* Like JavaScript's hasIndices: only populated with the 'd' flag *)
+          if has_flag regexp.flags lre_flag_indices then
+            Some
+              {
+                ranges;
+                groups =
+                  List.map
+                    (fun (name, group) -> (name, ranges.(group)))
+                    named_groups;
+              }
+          else None
+        in
+        Some { captures; index = match_start; input; groups; indices }
     | 0 ->
         (* No match: lastIndex resets for global/sticky regexps *)
         if global regexp || sticky regexp then regexp.last_index <- 0;

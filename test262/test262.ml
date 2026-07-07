@@ -14,6 +14,7 @@ let () =
       ("RegExp.prototype.exec", Regexp.Exec.tests);
       ("RegExp.flags", Regexp.Flags.tests);
       ("RegExp.source", Regexp.Source.tests);
+      ("RegExp.match-indices", Regexp.Indices.tests);
       (* Number tests *)
       ("Number.prototype.toString", Number.Prototype.To_string.tests);
       ("Number.prototype.toFixed", Number.Prototype.To_fixed.tests);

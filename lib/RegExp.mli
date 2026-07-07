@@ -18,6 +18,21 @@
 type t
 (** The RegExp object *)
 
+type match_indices = {
+  ranges : (int * int) option array;
+      (** Entry [g] is the [(start, end_)] range of capture group [g] in UTF-16
+          code units, with [end_] exclusive (the same convention as JavaScript's
+          [match.indices]: [start] is the index of the first code unit of the
+          capture and [end_] the index after the last one). Entry 0 is the full
+          match. A group that did not participate is [None]. *)
+  groups : (string * (int * int) option) list;
+      (** Ranges of named capture groups in source order, like JavaScript's
+          [match.indices.groups], with [None] for groups that did not
+          participate. *)
+}
+(** Match positions, equivalent to JavaScript's [match.indices] (the RegExp
+    Match Indices proposal, ES2022). *)
+
 type match_result = {
   captures : string option array;
       (** Entry 0 is the full match; entries 1..n are capture groups. A group
@@ -29,6 +44,9 @@ type match_result = {
   groups : (string * string option) list;
       (** Named capture groups in source order, with [None] for groups that did
           not participate. *)
+  indices : match_indices option;
+      (** Capture group positions. [Some] iff the regexp was compiled with the
+          [d] flag, like JavaScript's [hasIndices]. *)
 }
 (** The result of a successful match. *)
 
@@ -125,3 +143,10 @@ val test : ?timeout_ms:float -> t -> string -> bool
 val group : string -> match_result -> string option
 (** [group name m] returns the value of named capture group [name], or [None]
     when the group does not exist or did not participate in the match. *)
+
+val group_indices : string -> match_result -> (int * int) option
+(** [group_indices name m] returns the UTF-16 [(start, end_)] range of named
+    capture group [name] ([end_] exclusive), or [None] when the regexp was
+    compiled without the [d] flag, the group does not exist, or it did not
+    participate in the match. Equivalent to JavaScript's
+    [match.indices.groups[name]]. *)
