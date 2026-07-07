@@ -71,6 +71,21 @@ let case_conv_char conv_type c =
 let uppercase_char c = case_conv_char 0 c
 let lowercase_char c = case_conv_char 1 c
 
+(* QuickJS's folding table maps a few capitals through their lowercase form
+   (their simple case folding), one step short of Unicode full case folding:
+   e.g. U+1E9E -> U+00DF (spec: "ss") and U+1F88 -> U+1F80 (spec: U+1F00
+   U+03B9). Unicode case folding is idempotent, so refolding every output
+   until it is stable restores the spec mapping - at most two steps with the
+   current table; [fuel] guards against cycles in future tables. *)
+let fold_case_char c =
+  let rec refold fuel c =
+    match case_conv_char 2 c with
+    | [ folded ] when Uchar.equal folded c -> [ c ]
+    | outputs when fuel = 0 -> outputs
+    | outputs -> List.concat_map (refold (fuel - 1)) outputs
+  in
+  refold 4 c
+
 (* Case Conversion - Strings *)
 
 let is_cased_cp cp = Libunicode.is_cased (Unsigned.UInt32.of_int cp)
@@ -130,6 +145,24 @@ let case_conv_string conv_type s =
 
 let uppercase s = case_conv_string 0 s
 let lowercase s = case_conv_string 1 s
+
+(* Folding needs the refold treatment (see fold_case_char), so it does not
+   share case_conv_string's single-pass loop. Folding is also
+   context-independent: no Final_Sigma rule applies. *)
+let fold_case s =
+  let len = Stdlib.String.length s in
+  let buf = Stdlib.Buffer.create (len * 2) in
+  let rec loop i =
+    if i >= len then Stdlib.Buffer.contents buf
+    else begin
+      let d = Stdlib.String.get_utf_8_uchar s i in
+      List.iter
+        (Stdlib.Buffer.add_utf_8_uchar buf)
+        (fold_case_char (Uchar.utf_decode_uchar d));
+      loop (i + Uchar.utf_decode_length d)
+    end
+  in
+  loop 0
 
 (* Canonicalization for regex matching *)
 

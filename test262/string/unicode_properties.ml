@@ -131,6 +131,65 @@ let canonicalize_non_unicode_mode () =
   let result = Unicode.canonicalize ~unicode:false (Uchar.of_char 'a') in
   assert_uchar result (Uchar.of_char 'A')
 
+(* ===================================================================
+   Unicode.fold_case - full case folding
+   =================================================================== *)
+
+let fold_case_ascii () =
+  assert_string (Unicode.fold_case "Hello World") "hello world";
+  assert_string (Unicode.fold_case "ABC") (Unicode.fold_case "abc")
+
+let fold_case_sharp_s () =
+  (* Full case folding expands ß (and ẞ) to "ss" *)
+  assert_string (Unicode.fold_case "Straße") "strasse";
+  assert_string (Unicode.fold_case "STRASSE") "strasse";
+  (* U+1E9E LATIN CAPITAL LETTER SHARP S *)
+  assert_string (Unicode.fold_case "\u{1E9E}") "ss"
+
+let fold_case_sigma () =
+  (* Folding is context-independent: both medial σ and final ς fold to σ,
+     so the foldings of "ΣΤΙΓΜΑΣ" and "στιγμας" are equal *)
+  assert_string (Unicode.fold_case "ΣΤΙΓΜΑΣ") (Unicode.fold_case "στιγμας");
+  assert_string (Unicode.fold_case "ς") (Unicode.fold_case "σ")
+
+let fold_case_kelvin () =
+  (* U+212A KELVIN SIGN folds to k *)
+  assert_string (Unicode.fold_case "\u{212A}") "k"
+
+let fold_case_prosgegrammeni () =
+  (* U+1F88 GREEK CAPITAL ALPHA WITH PSILI AND PROSGEGRAMMENI folds to
+     U+1F00 U+03B9 (full folding), and equals the folding of its lowercase
+     form U+1F80 *)
+  assert_string (Unicode.fold_case "\u{1F88}") "\u{1F00}\u{03B9}";
+  assert_string (Unicode.fold_case "\u{1F88}") (Unicode.fold_case "\u{1F80}")
+
+let fold_case_idempotent () =
+  (* toCasefold(toCasefold(X)) = toCasefold(X), including the capitals
+     QuickJS's table folds through their lowercase form *)
+  List.iter
+    (fun s ->
+      let once = Unicode.fold_case s in
+      assert_string (Unicode.fold_case once) once)
+    [ "\u{1E9E}"; "\u{1F88}"; "\u{1FBC}"; "\u{1FCC}"; "\u{1FFC}"; "Straße" ]
+
+let fold_case_cherokee () =
+  (* Cherokee folds to the uppercase letters: U+AB70 SMALL A -> U+13A0 *)
+  assert_string (Unicode.fold_case "\u{AB70}") "\u{13A0}";
+  assert_string (Unicode.fold_case "\u{13A0}") "\u{13A0}"
+
+let fold_case_char_expansion () =
+  (* ß folds to two code points *)
+  let folded = Unicode.fold_case_char (Uchar.of_int 0x00DF) in
+  Alcotest.(check (list int))
+    "ß folds to ss"
+    [ Char.code 's'; Char.code 's' ]
+    (List.map Uchar.to_int folded);
+  (* plain letters fold to themselves in one code point *)
+  Alcotest.(check (list int))
+    "A folds to a"
+    [ Char.code 'a' ]
+    (List.map Uchar.to_int (Unicode.fold_case_char (Uchar.of_char 'A')))
+
 let tests =
   [
     (* is_cased *)
@@ -158,4 +217,13 @@ let tests =
     test "canonicalize: unicode mode" canonicalize_unicode_mode;
     test "canonicalize: lowercase unchanged" canonicalize_lowercase_unchanged;
     test "canonicalize: non-unicode mode" canonicalize_non_unicode_mode;
+    (* fold_case *)
+    test "fold_case: ASCII" fold_case_ascii;
+    test "fold_case: sharp s expands" fold_case_sharp_s;
+    test "fold_case: sigma is context-independent" fold_case_sigma;
+    test "fold_case: Kelvin sign" fold_case_kelvin;
+    test "fold_case: prosgegrammeni full folding" fold_case_prosgegrammeni;
+    test "fold_case: idempotent" fold_case_idempotent;
+    test "fold_case: Cherokee folds to uppercase" fold_case_cherokee;
+    test "fold_case_char: expansion" fold_case_char_expansion;
   ]

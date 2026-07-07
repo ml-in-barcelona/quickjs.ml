@@ -36,6 +36,13 @@ val uppercase : string -> string
 (** [uppercase str] converts a UTF-8 string to uppercase. Handles special cases
     like "ß" → "SS". *)
 
+val fold_case : string -> string
+(** [fold_case str] applies Unicode full case folding to a UTF-8 string, e.g.
+    "Straße" → "strasse" and "ΣΤΙΓΜΑΣ" → "στιγμασ". Case folding is
+    context-independent (no Final_Sigma rule) and locale-independent; two
+    strings are caseless-equal when their foldings are equal. This is the same
+    folding QuickJS uses for case-insensitive matching. *)
+
 (** {1 Single Character Operations} *)
 
 val lowercase_char : Uchar.t -> Uchar.t list
@@ -45,6 +52,10 @@ val lowercase_char : Uchar.t -> Uchar.t list
 val uppercase_char : Uchar.t -> Uchar.t list
 (** [uppercase_char c] returns the uppercase form of a code point. Returns a
     list because some characters expand, e.g., 'ß' → ['S'; 'S']. *)
+
+val fold_case_char : Uchar.t -> Uchar.t list
+(** [fold_case_char c] returns the Unicode full case folding of a code point.
+    Returns a list because some characters expand, e.g., 'ß' → ['s'; 's']. *)
 
 (** {1 Character Classification} *)
 
