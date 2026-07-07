@@ -6,7 +6,7 @@ This project exposes two libraries:
 
 - **[`quickjs.c`](https://ml-in-barcelona.github.io/quickjs.ml/docs/local/quickjs/c/index.html)**: Low-level OCaml bindings to QuickJS C libs (`libregexp`, `libunicode`, `js_dtoa`, `js_atod`, and `cutils`)
 
-- **[`quickjs`](https://ml-in-barcelona.github.io/quickjs.ml/docs/local/quickjs/Quickjs/index.html)**: A high-level API that mirrors JavaScript's built-in objects and methods. Modules include `RegExp`, `String`, `Number`, and `Global`.
+- **[`quickjs`](https://ml-in-barcelona.github.io/quickjs.ml/docs/local/quickjs/Quickjs/index.html)**: A high-level API that mirrors JavaScript's built-in objects and methods. Modules include `RegExp`, `String`, `Number`, `Global`, and `Unicode`.
 
 ### Motivation
 
@@ -52,6 +52,14 @@ let () =
   (try ignore (RegExp.exec ~timeout_ms:100.0 re "hello world")
    with RegExp.Timeout -> print_endline "regexp took too long");
 
+  (* The 'd' flag records capture group positions (match.indices) *)
+  let re = RegExp.compile ~flags:"d" "b(c)" |> Result.get_ok in
+  (match RegExp.exec re "abcd" with
+  | Some m ->
+      let indices = Option.get m.indices in
+      assert (indices.ranges = [| Some (1, 3); Some (2, 3) |])
+  | None -> assert false);
+
   (* Number.Prototype - JavaScript-identical number formatting *)
   assert (Number.Prototype.to_string 0.1 = "0.1");
   (* no floating point artifacts *)
@@ -73,7 +81,16 @@ let () =
 
   (* String.Prototype - JavaScript string methods *)
   assert (String.Prototype.to_lower_case "HELLO" = "hello");
-  assert (String.Prototype.to_upper_case "world" = "WORLD")
+  assert (String.Prototype.to_upper_case "world" = "WORLD");
+  assert (String.from_code_point [| 0x1F600 |] = "😀");
+  assert (
+    String.Prototype.split_regex "(x)?(b)" "ab"
+    = [| Some "a"; None; Some "b"; Some "" |]);
+
+  (* Unicode - case folding and the property tables behind \p{...} *)
+  assert (Unicode.fold_case "Straße" = Unicode.fold_case "STRASSE");
+  let greek = Option.get (Unicode.script "Greek") in
+  assert (Unicode.CharSet.mem (Uchar.of_int 0x03B1) greek) (* α *)
 ```
 
 For more details, see the [API reference](https://ml-in-barcelona.github.io/quickjs.ml/docs/local/quickjs/index.html).
