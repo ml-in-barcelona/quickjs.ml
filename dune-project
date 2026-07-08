@@ -26,7 +26,10 @@
   ;; General system dependencies
   (ocaml (>= 4.14.0))
   (integers (>= 0.7.0))
-  (ctypes (>= 0.13.0))
+  ;; 0.24.0 is the first release whose interface uses Bigarray directly
+  ;; instead of Bigarray_compat, which we rely on in RegExp.ml. Older
+  ;; releases fail to typecheck without a bigarray-compat dependency.
+  (ctypes (>= 0.24.0))
 
   ;; Test dependencies
   (alcotest :with-test)
