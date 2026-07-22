@@ -34,6 +34,9 @@ type match_result = {
   indices : match_indices option; (* Some iff the 'd' flag is set *)
 }
 
+type source_range = { utf16 : int * int; bytes : (int * int) option }
+type prepared_match = { result : match_result; range : source_range }
+
 type compile_error =
   [ `Unexpected_end
   | `Malformed_unicode_char
@@ -300,52 +303,47 @@ let utf8_to_utf16_bytes s =
   in
   loop 0
 
-(* Mapping between UTF-16 code unit indices and UTF-8 byte indices of a
-   string: two parallel sorted arrays with one entry per code point plus a
-   final sentinel (u16 length, byte length). *)
-type utf16_map = { u16 : int array; u8 : int array }
+(* Exact UTF-8 byte offset for each UTF-16 boundary. An entry is [-1] when the
+   corresponding UTF-16 index falls between the surrogates of an astral code
+   point. The final entry is the source byte length. *)
+type utf16_map = { u8_by_u16 : int array; valid_utf8 : bool }
 
 let build_utf16_map s =
   let len = Stdlib.String.length s in
-  (* count code points *)
-  let rec count i n =
-    if i >= len then n
+  let rec count i units =
+    if i >= len then units
     else
+      let d = Stdlib.String.get_utf_8_uchar s i in
+      let code = Uchar.to_int (Uchar.utf_decode_uchar d) in
       count
-        (i + Uchar.utf_decode_length (Stdlib.String.get_utf_8_uchar s i))
-        (n + 1)
+        (i + Uchar.utf_decode_length d)
+        (units + if code >= 0x10000 then 2 else 1)
   in
-  let entries = count 0 0 in
-  let u16 = Array.make (entries + 1) 0 in
-  let u8 = Array.make (entries + 1) 0 in
-  let rec fill i u16_idx entry =
+  let u8_by_u16 = Array.make (count 0 0 + 1) (-1) in
+  let valid_utf8 = ref true in
+  let rec fill i u16_idx =
     if i >= len then begin
-      u16.(entry) <- u16_idx;
-      u8.(entry) <- i
+      u8_by_u16.(u16_idx) <- i
     end
     else begin
       let d = Stdlib.String.get_utf_8_uchar s i in
+      if not (Uchar.utf_decode_is_valid d) then valid_utf8 := false;
       let code = Uchar.to_int (Uchar.utf_decode_uchar d) in
-      u16.(entry) <- u16_idx;
-      u8.(entry) <- i;
+      u8_by_u16.(u16_idx) <- i;
       let units = if code >= 0x10000 then 2 else 1 in
-      fill (i + Uchar.utf_decode_length d) (u16_idx + units) (entry + 1)
+      fill (i + Uchar.utf_decode_length d) (u16_idx + units)
     end
   in
-  fill 0 0 0;
-  { u16; u8 }
+  fill 0 0;
+  { u8_by_u16; valid_utf8 = !valid_utf8 }
 
-let utf16_length_of_map map = map.u16.(Array.length map.u16 - 1)
+let utf16_length_of_map map = Array.length map.u8_by_u16 - 1
 
-(* Largest entry with u16 <= target; a UTF-16 index falling inside a
-   surrogate pair maps to the byte offset of the pair's code point. *)
-let utf16_to_utf8_index map target =
-  let lo = ref 0 and hi = ref (Array.length map.u16 - 1) in
-  while !lo < !hi do
-    let mid = (!lo + !hi + 1) / 2 in
-    if map.u16.(mid) <= target then lo := mid else hi := mid - 1
-  done;
-  map.u8.(!lo)
+let utf16_to_utf8_exact map target =
+  if target < 0 || target > utf16_length_of_map map then None
+  else
+    let byte_index = map.u8_by_u16.(target) in
+    if byte_index < 0 then None else Some byte_index
 
 let fill_carray_of_string s =
   let len = Stdlib.String.length s in
@@ -356,32 +354,133 @@ let fill_carray_of_string s =
   done;
   arr
 
-(* exec is not a direct binding to lre_exec but an implementation of
-   js_regexp_exec from quickjs.c *)
-let exec ?timeout_ms regexp input =
+type prepared_input = {
+  input : string;
+  buffer_storage : Unsigned.uint8 Ctypes.CArray.t;
+  matching_length : int;
+  buffer_type : int;
+  utf16_map : utf16_map option;
+}
+
+let prepare_input input =
+  if is_ascii input then
+    {
+      input;
+      buffer_storage = fill_carray_of_string input;
+      matching_length = Stdlib.String.length input;
+      buffer_type = 0;
+      utf16_map = None;
+    }
+  else
+    let map = build_utf16_map input in
+    let utf16_str = utf8_to_utf16_bytes input in
+    {
+      input;
+      buffer_storage = fill_carray_of_string utf16_str;
+      matching_length = utf16_length_of_map map;
+      buffer_type = 1;
+      utf16_map = Some map;
+    }
+
+let prepared_byte_range prepared ~start ~end_ =
+  if start < 0 || end_ < start || end_ > prepared.matching_length then None
+  else
+    match prepared.utf16_map with
+    | None -> Some (start, end_)
+    | Some map when not map.valid_utf8 -> None
+    | Some map -> (
+        match (utf16_to_utf8_exact map start, utf16_to_utf8_exact map end_) with
+        | Some start_byte, Some end_byte -> Some (start_byte, end_byte)
+        | _ -> None)
+
+let utf16_unit prepared index =
+  let offset = index * 2 in
+  let first =
+    Ctypes.CArray.get prepared.buffer_storage offset |> Unsigned.UInt8.to_int
+  in
+  let second =
+    Ctypes.CArray.get prepared.buffer_storage (offset + 1)
+    |> Unsigned.UInt8.to_int
+  in
+  if Sys.big_endian then (first lsl 8) lor second else first lor (second lsl 8)
+
+let prepared_substring prepared ~start ~end_ =
+  let start = Stdlib.max 0 (Stdlib.min start prepared.matching_length) in
+  let end_ = Stdlib.max start (Stdlib.min end_ prepared.matching_length) in
+  match prepared_byte_range prepared ~start ~end_ with
+  | Some (start_byte, end_byte) ->
+      Stdlib.String.sub prepared.input start_byte (end_byte - start_byte)
+  | None ->
+      let buf = Stdlib.Buffer.create ((end_ - start) * 3) in
+      let rec loop index =
+        if index < end_ then (
+          let code = utf16_unit prepared index in
+          if code >= 0xD800 && code <= 0xDBFF && index + 1 < end_ then
+            let low = utf16_unit prepared (index + 1) in
+            if low >= 0xDC00 && low <= 0xDFFF then (
+              let code_point =
+                0x10000 + ((code - 0xD800) * 0x400) + (low - 0xDC00)
+              in
+              Stdlib.Buffer.add_utf_8_uchar buf (Uchar.of_int code_point);
+              loop (index + 2))
+            else (
+              Stdlib.Buffer.add_utf_8_uchar buf Uchar.rep;
+              loop (index + 1))
+          else
+            let uchar =
+              if code >= 0xD800 && code <= 0xDFFF then Uchar.rep
+              else Uchar.of_int code
+            in
+            Stdlib.Buffer.add_utf_8_uchar buf uchar;
+            loop (index + 1))
+      in
+      loop start;
+      Stdlib.Buffer.contents buf
+
+let prepared_advance_index prepared ~unicode index =
+  let index = Stdlib.max 0 index in
+  let next = if index = Stdlib.max_int then index else index + 1 in
+  if
+    (not unicode) || prepared.buffer_type = 0
+    || next >= prepared.matching_length
+  then next
+  else
+    let high = utf16_unit prepared index in
+    if high < 0xD800 || high > 0xDBFF then index + 1
+    else
+      let low = utf16_unit prepared (index + 1) in
+      if low >= 0xDC00 && low <= 0xDFFF then index + 2 else index + 1
+
+let prepared_start_index prepared regexp =
+  let index = if global regexp || sticky regexp then regexp.last_index else 0 in
+  if
+    prepared.buffer_type = 1 && index > 0
+    && index < prepared.matching_length
+    && unicode regexp
+  then
+    let current = utf16_unit prepared index in
+    let previous = utf16_unit prepared (index - 1) in
+    if
+      current >= 0xDC00 && current <= 0xDFFF && previous >= 0xD800
+      && previous <= 0xDBFF
+    then index - 1
+    else index
+  else index
+
+(* exec_prepared is not a direct binding to lre_exec but an implementation of
+   js_regexp_exec from quickjs.c. *)
+let exec_prepared ?timeout_ms regexp prepared =
+  let input = prepared.input in
   let capture_count = Libregexp.get_capture_count regexp.bc in
   let capture_size = capture_count * 2 in
   let capture = Ctypes.CArray.make (Ctypes.ptr Ctypes.uint8_t) capture_size in
   let start_capture = Ctypes.CArray.start capture in
 
-  (* Pure ASCII input can use the engine's 8-bit path where byte index =
-     UTF-16 index. Any other input is matched as UTF-16 code units. *)
-  let use_utf16 = not (is_ascii input) in
-  let bufp, matching_length, buffer_type, utf16_map =
-    if use_utf16 then begin
-      let map = build_utf16_map input in
-      let utf16_str = utf8_to_utf16_bytes input in
-      (fill_carray_of_string utf16_str, utf16_length_of_map map, 1, Some map)
-    end
-    else (fill_carray_of_string input, Stdlib.String.length input, 0, None)
-  in
-  let buffer = Ctypes.CArray.start bufp in
+  let buffer = Ctypes.CArray.start prepared.buffer_storage in
 
-  let start_index =
-    if global regexp || sticky regexp then regexp.last_index else 0
-  in
+  let start_index = prepared_start_index prepared regexp in
 
-  if start_index > matching_length then begin
+  if start_index > prepared.matching_length then begin
     (* No match possible: reset last_index like JavaScript does *)
     if global regexp || sticky regexp then regexp.last_index <- 0;
     None
@@ -394,21 +493,17 @@ let exec ?timeout_ms regexp input =
           Some (Ctypes.allocate Ctypes.double (Libregexp.now_ms () +. ms))
     in
     let exec_result =
-      Libregexp.exec start_capture regexp.bc buffer start_index matching_length
-        buffer_type deadline
+      Libregexp.exec start_capture regexp.bc buffer start_index
+        prepared.matching_length prepared.buffer_type deadline
     in
     match exec_result with
     | 1 ->
-        (* Convert a byte offset into the matching buffer to a UTF-16 code
-           unit index, and a UTF-16 index to a UTF-8 byte index for
-           substring extraction. *)
+        (* Convert byte offsets in the matching buffer to UTF-16 code-unit
+           indices. *)
         let to_utf16_index raw_bytes =
-          match utf16_map with Some _ -> raw_bytes / 2 | None -> raw_bytes
-        in
-        let to_utf8_index u16_index =
-          match utf16_map with
-          | Some map -> utf16_to_utf8_index map u16_index
-          | None -> u16_index
+          match prepared.utf16_map with
+          | Some _ -> raw_bytes / 2
+          | None -> raw_bytes
         in
         (* UTF-16 [start, end) per group; None = did not participate.
            Entry 0 is the full match. *)
@@ -429,9 +524,8 @@ let exec ?timeout_ms regexp input =
             (function
               | None -> None
               | Some (u16_start, u16_end) ->
-                  let u8_start = to_utf8_index u16_start in
-                  let u8_end = to_utf8_index u16_end in
-                  Some (Stdlib.String.sub input u8_start (u8_end - u8_start)))
+                  Some
+                    (prepared_substring prepared ~start:u16_start ~end_:u16_end))
             ranges
         in
         let match_start, match_end =
@@ -480,7 +574,17 @@ let exec ?timeout_ms regexp input =
               }
           else None
         in
-        Some { captures; index = match_start; input; groups; indices }
+        let result =
+          { captures; index = match_start; input; groups; indices }
+        in
+        let range =
+          {
+            utf16 = (match_start, match_end);
+            bytes =
+              prepared_byte_range prepared ~start:match_start ~end_:match_end;
+          }
+        in
+        Some { result; range }
     | 0 ->
         (* No match: lastIndex resets for global/sticky regexps *)
         if global regexp || sticky regexp then regexp.last_index <- 0;
@@ -488,6 +592,11 @@ let exec ?timeout_ms regexp input =
     | -2 (* LRE_RET_TIMEOUT *) -> raise Timeout
     | _ (* -1, LRE_RET_MEMORY_ERROR *) -> raise Out_of_memory
   end
+
+let exec ?timeout_ms regexp input =
+  match exec_prepared ?timeout_ms regexp (prepare_input input) with
+  | Some prepared_match -> Some prepared_match.result
+  | None -> None
 
 let test ?timeout_ms regexp input =
   match exec ?timeout_ms regexp input with Some _ -> true | None -> false

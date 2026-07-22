@@ -493,6 +493,88 @@ let lastindex_and_index () =
   assert_no_match result;
   assert_int (RegExp.last_index re) 0
 
+let prepared_global_iteration () =
+  let re = regexp_compile "a" ~flags:"g" in
+  let prepared = RegExp.prepare_input "banana" in
+  let first = RegExp.exec_prepared re prepared in
+  (match first with
+  | Some m ->
+      assert_captures (Some m.result) [| Some "a" |];
+      Alcotest.(check (pair int int)) "first UTF-16 range" (1, 2) m.range.utf16;
+      Alcotest.(check (option (pair int int)))
+        "first byte range"
+        (Some (1, 2))
+        m.range.bytes
+  | None -> Alcotest.fail "expected first prepared match");
+  let second = RegExp.exec_prepared re prepared in
+  (match second with
+  | Some m ->
+      assert_captures (Some m.result) [| Some "a" |];
+      Alcotest.(check (pair int int)) "second UTF-16 range" (3, 4) m.range.utf16
+  | None -> Alcotest.fail "expected second prepared match");
+  ignore (RegExp.exec_prepared re prepared);
+  ignore (RegExp.exec_prepared re prepared);
+  assert_int (RegExp.last_index re) 0
+
+let prepared_unicode_ranges () =
+  let prepared = RegExp.prepare_input "é😀b" in
+  Alcotest.(check (option (pair int int)))
+    "BMP byte range"
+    (Some (0, 2))
+    (RegExp.prepared_byte_range prepared ~start:0 ~end_:1);
+  Alcotest.(check (option (pair int int)))
+    "astral byte range"
+    (Some (2, 6))
+    (RegExp.prepared_byte_range prepared ~start:1 ~end_:3);
+  Alcotest.(check (option (pair int int)))
+    "ASCII byte range"
+    (Some (6, 7))
+    (RegExp.prepared_byte_range prepared ~start:3 ~end_:4);
+  assert_string (RegExp.prepared_substring prepared ~start:0 ~end_:4) "é😀b";
+  assert_int (RegExp.prepared_advance_index prepared ~unicode:true 1) 3;
+  assert_int (RegExp.prepared_advance_index prepared ~unicode:false 1) 2;
+  assert_int (RegExp.prepared_advance_index prepared ~unicode:true 3) 4
+
+let prepared_surrogate_boundaries () =
+  let re = regexp_compile "." ~flags:"g" in
+  let prepared = RegExp.prepare_input "😀" in
+  let first = RegExp.exec_prepared re prepared in
+  (match first with
+  | Some m ->
+      assert_captures (Some m.result) [| Some "�" |];
+      Alcotest.(check (pair int int))
+        "high surrogate range" (0, 1) m.range.utf16;
+      Alcotest.(check (option (pair int int)))
+        "high surrogate has no byte range" None m.range.bytes
+  | None -> Alcotest.fail "expected high-surrogate match");
+  let second = RegExp.exec_prepared re prepared in
+  match second with
+  | Some m ->
+      assert_captures (Some m.result) [| Some "�" |];
+      Alcotest.(check (pair int int)) "low surrogate range" (1, 2) m.range.utf16;
+      Alcotest.(check (option (pair int int)))
+        "low surrogate has no byte range" None m.range.bytes
+  | None -> Alcotest.fail "expected low-surrogate match"
+
+let prepared_owns_input () =
+  let prepared =
+    let input = "temporary é input" in
+    RegExp.prepare_input input
+  in
+  Gc.full_major ();
+  let re = regexp_compile "é" ~flags:"" in
+  match RegExp.exec_prepared re prepared with
+  | Some m -> assert_captures (Some m.result) [| Some "é" |]
+  | None -> Alcotest.fail "prepared input must keep its source alive"
+
+let unicode_last_index_inside_surrogate_pair () =
+  let re = regexp_compile "." ~flags:"yu" in
+  RegExp.set_last_index re 1;
+  let result = RegExp.exec re "😀" in
+  assert_match result [| "😀" |];
+  assert_match_index result 0;
+  assert_int (RegExp.last_index re) 2
+
 let tests =
   [
     (* A1: Basic exec *)
@@ -555,4 +637,10 @@ let tests =
     test "lookbehind: word boundary" lookbehind_word_boundary;
     test "lookbehind: negative" lookbehind_negative;
     test "lastIndex: index interaction" lastindex_and_index;
+    test "prepared input: global iteration" prepared_global_iteration;
+    test "prepared input: Unicode byte ranges" prepared_unicode_ranges;
+    test "prepared input: surrogate boundaries" prepared_surrogate_boundaries;
+    test "prepared input: owns source lifetime" prepared_owns_input;
+    test "unicode lastIndex: trailing surrogate"
+      unicode_last_index_inside_surrogate_pair;
   ]

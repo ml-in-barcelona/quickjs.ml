@@ -50,6 +50,24 @@ type match_result = {
 }
 (** The result of a successful match. *)
 
+type prepared_input
+(** An immutable input converted to the representation expected by libregexp.
+    Preparing once and reusing this value avoids copying and converting the
+    complete input for every match in a global iteration. *)
+
+type source_range = {
+  utf16 : int * int;
+      (** Match range in UTF-16 code units, with the end exclusive. *)
+  bytes : (int * int) option;
+      (** Exact range in the original UTF-8 string when both UTF-16 boundaries
+          align with source character boundaries. [None] when the range splits a
+          surrogate pair or the source contained malformed UTF-8. *)
+}
+
+type prepared_match = { result : match_result; range : source_range }
+(** A match against a {!prepared_input}, including the full match range in both
+    JavaScript index units and, when representable, source byte offsets. *)
+
 type compile_error =
   [ `Unexpected_end
   | `Malformed_unicode_char
@@ -117,6 +135,36 @@ val indices : t -> bool
 
 val source : t -> string
 (** returns the regexp pattern as a string *)
+
+val prepare_input : string -> prepared_input
+(** [prepare_input input] converts [input] once for reuse by {!exec_prepared}.
+    The prepared value owns its matching buffer and keeps the original string
+    alive. *)
+
+val prepared_byte_range :
+  prepared_input -> start:int -> end_:int -> (int * int) option
+(** [prepared_byte_range input ~start ~end_] returns the exact UTF-8 byte range
+    corresponding to UTF-16 offsets [start] (inclusive) and [end_] (exclusive)
+    when it can be sliced directly from the original string. *)
+
+val prepared_substring : prepared_input -> start:int -> end_:int -> string
+(** [prepared_substring input ~start ~end_] extracts a UTF-16 range from the
+    prepared input. A boundary that splits a surrogate pair is represented by
+    U+FFFD because OCaml strings cannot encode unpaired surrogates. *)
+
+val prepared_advance_index : prepared_input -> unicode:bool -> int -> int
+(** [prepared_advance_index input ~unicode index] implements JavaScript's
+    AdvanceStringIndex operation without rescanning the source. In Unicode mode,
+    an index at the start of a surrogate pair advances by two UTF-16 code units;
+    every other index advances by one. *)
+
+val exec_prepared :
+  ?timeout_ms:float -> t -> prepared_input -> prepared_match option
+(** [exec_prepared regexp input] has the same matching and [last_index]
+    semantics as {!exec}, but reuses [input]'s matching buffer and UTF-16 map.
+
+    @raise Timeout when [timeout_ms] is exceeded.
+    @raise Out_of_memory when the engine fails to allocate. *)
 
 val exec : ?timeout_ms:float -> t -> string -> match_result option
 (** [exec regexp input] executes a search and returns the first match, or [None]

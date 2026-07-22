@@ -1,5 +1,12 @@
 # Changes
 
+## 0.5.1
+
+- Add `RegExp.prepare_input` and `exec_prepared` for reusing one matching buffer and UTF-16 map across repeated matches
+- Add prepared-input source range, substring and `AdvanceStringIndex` helpers
+- Fix regexp captures whose UTF-16 range splits a surrogate pair: the unpaired half is represented as U+FFFD instead of slicing the wrong UTF-8 bytes
+- Fix Unicode global and sticky regexps starting from the trailing half of a surrogate pair instead of the pair's start
+
 ## 0.5.0
 
 - **Breaking:** `RegExp.exec` returns `match_result option`: `None` on no match, and a record with `captures`, `index`, `input`, `groups` and `indices` on match
