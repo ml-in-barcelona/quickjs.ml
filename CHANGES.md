@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.6.0
+
 - Update QuickJS-NG to `c2f37ec`, adopting its register-based regexp engine and latest memory-safety fixes
 - Add regexp modifiers, duplicate named capture groups, full Unicode sets, and Unicode properties of strings
 
