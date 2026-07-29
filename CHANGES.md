@@ -1,5 +1,10 @@
 # Changes
 
+## Unreleased
+
+- Update QuickJS-NG to `c2f37ec`, adopting its register-based regexp engine and latest memory-safety fixes
+- Add regexp modifiers, duplicate named capture groups, full Unicode sets, and Unicode properties of strings
+
 ## 0.5.1
 
 - Add `RegExp.prepare_input` and `exec_prepared` for reusing one matching buffer and UTF-16 map across repeated matches

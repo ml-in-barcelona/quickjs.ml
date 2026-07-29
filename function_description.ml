@@ -3,8 +3,7 @@
     This module defines the FFI bindings to QuickJS's internal libraries:
     - libregexp: Regular expression engine
     - libunicode: Unicode character utilities
-    - dtoa: Number ↔ String conversion (js_dtoa, js_atod)
-    - cutils: Integer to string conversion (itoa family)
+    - dtoa: Number ↔ String conversion, including the itoa family
 
     Some functions are bound through wrappers in [shims.c], either because
     ctypes cannot express the exact C signature (const qualifiers), or to add
@@ -20,7 +19,7 @@ module Functions (F : Ctypes.FOREIGN) = struct
   (* =========================================================================
      libregexp.c - Regular Expression Engine
 
-     QuickJS's ES2023-compliant regex engine with Unicode support.
+     QuickJS's ECMAScript-compatible regex engine with Unicode support.
      ========================================================================= *)
 
   (** Compile a regular expression pattern into bytecode (via shim that arms
@@ -39,8 +38,8 @@ module Functions (F : Ctypes.FOREIGN) = struct
 
   (** Execute a compiled regex against input string (via shim that arms the
       C-stack guard and threads an optional deadline).
-      Returns: 1 = match, 0 = no match,
-      -1 = LRE_RET_MEMORY_ERROR, -2 = LRE_RET_TIMEOUT *)
+       Returns: 1 = match, 0 = no match, -1 = LRE_RET_MEMORY_ERROR,
+       -2 = LRE_RET_TIMEOUT, -3 = LRE_RET_BYTECODE_ERROR *)
   let lre_exec =
     F.foreign "lre_exec_shim"
       (Ctypes.ptr (Ctypes.ptr Ctypes.uint8_t)  (* [out] uint8_t **capture *)
@@ -68,10 +67,20 @@ module Functions (F : Ctypes.FOREIGN) = struct
       (Ctypes.ptr Ctypes.uint8_t      (* const uint8_t *bc_buf *)
       @-> F.returning Ctypes.int)
 
-  (** Get pointer to null-terminated group names (via shim) *)
+  let lre_get_alloc_count =
+    F.foreign "lre_get_alloc_count"
+      (Ctypes.ptr Ctypes.uint8_t @-> F.returning Ctypes.int)
+
+  (** Get pointer to the engine-owned group-name records (via shim) *)
   let lre_get_groupnames =
     F.foreign "lre_get_groupnames_shim"
       (Ctypes.ptr Ctypes.uint8_t      (* const uint8_t *bc_buf *)
+      @-> F.returning (Ctypes.ptr_opt Ctypes.char))
+
+  let lre_get_groupname =
+    F.foreign "lre_get_groupname_shim"
+      (Ctypes.ptr Ctypes.uint8_t
+      @-> Ctypes.int
       @-> F.returning (Ctypes.ptr_opt Ctypes.char))
 
   (** Get flags from compiled bytecode *)
@@ -112,7 +121,7 @@ module Functions (F : Ctypes.FOREIGN) = struct
       LineTerminator; matches regexp \s, String.prototype.trim and the
       whitespace skipped by parseInt/parseFloat) *)
   let lre_is_space =
-    F.foreign "lre_is_space"
+    F.foreign "lre_is_space_shim"
       (Ctypes.int @-> F.returning Ctypes.bool)
 
   (* --- Case Conversion --- *)
@@ -220,7 +229,7 @@ module Functions (F : Ctypes.FOREIGN) = struct
       @-> F.returning Ctypes.double)
 
   (* =========================================================================
-     cutils.c / dtoa.c - Integer to String Conversion
+     dtoa.c - Integer to String Conversion
 
      Fast integer-to-string functions (itoa family). These do not
      NUL-terminate; they return the number of bytes written.

@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 #include <time.h>
 #include "cutils.h"
 #include "libunicode.h"
@@ -124,6 +125,24 @@ void lre_bytecode_free(uint8_t *bc_buf)
 char *lre_get_groupnames_shim(const uint8_t *bc_buf)
 {
     return (char *)lre_get_groupnames(bc_buf);
+}
+
+char *lre_get_groupname_shim(const uint8_t *bc_buf, int group_index)
+{
+    const char *name = lre_get_groupnames(bc_buf);
+    int capture_count = lre_get_capture_count(bc_buf);
+    int i;
+
+    if (name == NULL || group_index < 1 || group_index >= capture_count)
+        return NULL;
+    for (i = 1; i < group_index; i++)
+        name += strlen(name) + LRE_GROUP_NAME_TRAILER_LEN;
+    return (char *)name;
+}
+
+bool lre_is_space_shim(int c)
+{
+    return lre_is_space((uint32_t)c);
 }
 
 /* ===========================================================================

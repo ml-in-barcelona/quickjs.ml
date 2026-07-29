@@ -4,6 +4,7 @@
 #ifndef SHIMS_H
 #define SHIMS_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -26,6 +27,10 @@ void lre_bytecode_free(uint8_t *bc_buf);
 
 /* Wrapper for lre_get_groupnames - casts away const for ctypes. */
 char *lre_get_groupnames_shim(const uint8_t *bc_buf);
+
+char *lre_get_groupname_shim(const uint8_t *bc_buf, int group_index);
+
+bool lre_is_space_shim(int c);
 
 /* Unicode normalization shim - wraps unicode_normalize with realloc. */
 int unicode_normalize_shim(const uint32_t *src, int src_len, int n_type,

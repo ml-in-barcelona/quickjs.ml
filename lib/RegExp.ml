@@ -271,6 +271,23 @@ let group_indices name (result : match_result) =
       | Some value -> value
       | None -> None)
 
+let named_group_values named_groups values =
+  let update groups (name, group) =
+    let value = values.(group) in
+    let rec replace prefix = function
+      | [] -> List.rev_append prefix [ (name, value) ]
+      | ((existing_name, existing_value) as existing) :: rest ->
+          if existing_name <> name then replace (existing :: prefix) rest
+          else
+            let value =
+              match value with Some _ -> value | None -> existing_value
+            in
+            List.rev_append prefix ((name, value) :: rest)
+    in
+    replace [] groups
+  in
+  List.fold_left update [] named_groups
+
 (* Convert a UTF-8 string to UTF-16 code units, packed as bytes in the
    platform's native endianness (lre_exec reads the 16-bit buffer through
    native uint16_t loads). *)
@@ -472,7 +489,7 @@ let prepared_start_index prepared regexp =
 let exec_prepared ?timeout_ms regexp prepared =
   let input = prepared.input in
   let capture_count = Libregexp.get_capture_count regexp.bc in
-  let capture_size = capture_count * 2 in
+  let capture_size = Libregexp.get_alloc_count regexp.bc in
   let capture = Ctypes.CArray.make (Ctypes.ptr Ctypes.uint8_t) capture_size in
   let start_capture = Ctypes.CArray.start capture in
 
@@ -539,39 +556,30 @@ let exec_prepared ?timeout_ms regexp prepared =
         if global regexp || sticky regexp then regexp.last_index <- match_end;
         (* (name, group number) pairs in source order *)
         let named_groups =
-          match Libregexp.get_groupnames regexp.bc with
-          | None -> []
-          | Some first_name ->
-              (* The buffer holds one NUL-terminated entry per capture group
-                 1..n; unnamed groups have an empty entry. *)
-              let rec walk ptr group acc =
-                if group >= capture_count then List.rev acc
-                else
-                  let name_len = strlen ptr in
+          let rec walk group acc =
+            if group >= capture_count then List.rev acc
+            else
+              match Libregexp.get_groupname regexp.bc group with
+              | None -> List.rev acc
+              | Some name_ptr ->
+                  let name_len = strlen name_ptr in
                   let acc =
-                    if name_len > 0 then
-                      let name = Ctypes.string_from_ptr ~length:name_len ptr in
+                    if name_len = 0 then acc
+                    else
+                      let name =
+                        Ctypes.string_from_ptr ~length:name_len name_ptr
+                      in
                       (name, group) :: acc
-                    else acc
                   in
-                  walk (Ctypes.( +@ ) ptr (name_len + 1)) (group + 1) acc
-              in
-              walk first_name 1 []
+                  walk (group + 1) acc
+          in
+          walk 1 []
         in
-        let groups =
-          List.map (fun (name, group) -> (name, captures.(group))) named_groups
-        in
+        let groups = named_group_values named_groups captures in
         let indices =
           (* Like JavaScript's hasIndices: only populated with the 'd' flag *)
           if has_flag regexp.flags lre_flag_indices then
-            Some
-              {
-                ranges;
-                groups =
-                  List.map
-                    (fun (name, group) -> (name, ranges.(group)))
-                    named_groups;
-              }
+            Some { ranges; groups = named_group_values named_groups ranges }
           else None
         in
         let result =
@@ -589,8 +597,12 @@ let exec_prepared ?timeout_ms regexp prepared =
         (* No match: lastIndex resets for global/sticky regexps *)
         if global regexp || sticky regexp then regexp.last_index <- 0;
         None
+    | -1 -> raise Out_of_memory
     | -2 (* LRE_RET_TIMEOUT *) -> raise Timeout
-    | _ (* -1, LRE_RET_MEMORY_ERROR *) -> raise Out_of_memory
+    | -3 -> failwith "QuickJS returned invalid regular expression bytecode"
+    | result ->
+        failwith
+          (Printf.sprintf "QuickJS returned unexpected regexp result %d" result)
   end
 
 let exec ?timeout_ms regexp input =
