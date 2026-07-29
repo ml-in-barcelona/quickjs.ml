@@ -37,4 +37,4 @@
  (foreign_library
   (archive_name quickjs)
   (language c)
-  (names libregexp libunicode cutils dtoa shims)))
+  (names libregexp libunicode dtoa shims)))
