@@ -33,7 +33,7 @@ jobs:
           - ubuntu-latest
           # - windows-latest
         ocaml-compiler:
-          - 4.14.0
+          - 4.14.2
           - 5.4.0
 
     steps:
