@@ -33,7 +33,7 @@ jobs:
           - ubuntu-latest
           # - windows-latest
         ocaml-compiler:
-          - 4.14.0
+          - 4.14.2
           - 5.4.0
 
     steps:
@@ -42,31 +42,15 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - name: Load opam cache when not Windows
-        if: runner.os != 'Windows'
-        id: opam-cache
-        uses: actions/cache/restore@v3
-        with:
-          path: ~/.opam
-          key: opam-${{ matrix.os }}-${{ matrix.ocaml-compiler }}-${{ hashFiles('**.opam') }}
-
-      - name: Load opam cache when Windows
-        if: runner.os == 'Windows'
-        id: opam-cache-windows
-        uses: actions/cache/restore@v3
-        with:
-          path: _opam
-          key: opam-${{ matrix.os }}-${{ matrix.ocaml-compiler }}-${{ hashFiles('**.opam') }}
-
-      - name: Use OCaml ${{ matrix.ocaml-compiler }}
-        uses: ocaml/setup-ocaml@v3
+      - name: Setup OCaml and dependencies
+        uses: ml-in-barcelona/gh-ci-action@v1.0.0
         with:
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
-          dune-cache: true
-          opam-disable-sandboxing: true
+          with-doc: true
+          with-dev-setup: true
 
-      - name: Install deps
-        run: make install
+      - name: Load dune cache
+        uses: ml-in-barcelona/gh-ci-action/dune-cache/load@v1.0.0
 
       - name: Build
         run: make build
@@ -90,19 +74,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
-      - name: Save cache when not Windows
-        uses: actions/cache/save@v3
-        if: steps.opam-cache.outputs.cache-hit != 'true' && runner.os != 'Windows'
-        with:
-          path: ~/.opam
-          key: opam-${{ matrix.os }}-${{ matrix.ocaml-compiler }}-${{ hashFiles('**.opam') }}
-
-      - name: Save cache when Windows
-        uses: actions/cache/save@v3
-        if: steps.opam-cache-windows.outputs.cache-hit != 'true' && runner.os == 'Windows'
-        with:
-          path: _opam
-          key: opam-${{ matrix.os }}-${{ matrix.ocaml-compiler }}-${{ hashFiles('**.opam') }}
+      - name: Save dune cache
+        if: ${{ !cancelled() }}
+        uses: ml-in-barcelona/gh-ci-action/dune-cache/save@v1.0.0
 
       - name: Install dune-release
         if: startsWith(github.ref, 'refs/tags/') && matrix.os == 'ubuntu-latest' && matrix.ocaml-compiler == '5.4.0'
