@@ -17,6 +17,8 @@
   (build_flags_resolver
    (vendored
     (c_flags "-Iquickjs" "-fPIC")))
+  (deps
+   (glob_files quickjs/*.h))
   (type_description
    (instance Type)
    (functor Type_description))
