@@ -11,7 +11,8 @@
  (foreign_archives quickjs/quickjs)
  (ctypes
   (external_library_name libregexp)
-  (deps (glob_files quickjs/*.h))
+  (deps
+   (glob_files quickjs/*.h))
   (headers
    (preamble
     "#include \"cutils.h\"\n#include \"libregexp.h\"\n#include \"libunicode.h\"\n#include \"dtoa.h\"\n#include \"shims.h\"\n"))
