@@ -10,39 +10,39 @@ help: ## Print this help message
 
 .PHONY: build
 build: ## Build the project, including non installable libraries and executables
-	$(DUNE) build @all
+	$(DUNE) build --root . @all
 
 .PHONY: build-prod
 build-prod: ## Build for production (--profile=prod)
-	$(DUNE) build --profile=prod @all
+	$(DUNE) build --root . --profile=prod @all
 
 .PHONY: dev
 dev: ## Build in watch mode
-	$(DUNE) build -w @all
+	$(DUNE) build --root . -w @all
 
 .PHONY: clean
 clean: ## Clean artifacts
-	$(DUNE) clean
+	$(DUNE) clean --root .
 
 .PHONY: test
 test: ## Run the unit tests
-	$(DUNE) build @runtest
+	$(DUNE) build --root . @runtest
 
 .PHONY: test-watch
 test-watch: ## Run the unit tests in watch mode
-	$(DUNE) build @runtest -w
+	$(DUNE) build --root . @runtest -w
 
 .PHONY: test-promote
 test-promote: ## Updates snapshots and promotes it to correct
-	$(DUNE) build @runtest --auto-promote
+	$(DUNE) build --root . @runtest --auto-promote
 
 .PHONY: format
 format: ## Format the codebase with ocamlformat
-	$(DUNE) build @fmt --auto-promote
+	$(DUNE) build --root . @fmt --auto-promote
 
 .PHONY: format-check
 format-check: ## Checks if format is correct
-	$(DUNE) build @fmt
+	$(DUNE) build --root . @fmt
 
 .PHONY: setup-githooks
 setup-githooks: ## Setup githooks
@@ -66,7 +66,7 @@ init: submodules setup-githooks create-switch install ## Create a local dev envi
 
 .PHONY: bench
 bench: ## Run benchmark (make bench [quick|compare|scaling|edge|all])
-	@$(DUNE) exec benchmark/main.exe --profile=benchmark -- $(filter-out bench,$(MAKECMDGOALS))
+	@$(DUNE) exec --root . benchmark/main.exe --profile=benchmark -- $(filter-out bench,$(MAKECMDGOALS))
 
 # Allow "make bench <scenario>" syntax
 quick compare scaling edge all:
