@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.6.1
+
+- Fix the build with dune 3.25 and later: declare the vendored QuickJS headers as dependencies of the ctypes stanza, which dune now builds in a sandbox
+
 ## 0.6.0
 
 - Update QuickJS-NG to `c2f37ec`, adopting its register-based regexp engine and latest memory-safety fixes
