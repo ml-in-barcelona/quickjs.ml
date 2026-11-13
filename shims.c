@@ -13,7 +13,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
-#include <time.h>
 #include "cutils.h"
 #include "libunicode.h"
 #include "libregexp.h"
@@ -75,12 +74,7 @@ void *lre_realloc(void *opaque, void *ptr, size_t size)
 /* Monotonic clock in milliseconds. */
 double lre_now_ms(void)
 {
-#if defined(CLOCK_MONOTONIC)
-    struct timespec ts;
-    if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
-        return (double)ts.tv_sec * 1000.0 + (double)ts.tv_nsec / 1e6;
-#endif
-    return 0.0;
+    return (double)js__hrtime_ns() / 1e6;
 }
 
 /* The opaque pointer passed through lre_exec is either NULL (no deadline)
