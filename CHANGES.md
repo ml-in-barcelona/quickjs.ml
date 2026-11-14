@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.6.2
+
+- Add Windows support: the regexp timeout clock uses QuickJS's portable `js__hrtime_ns` instead of `clock_gettime`, which did not link on Windows
+
 ## 0.6.1
 
 - Fix the build with dune 3.25 and later: declare the vendored QuickJS headers as dependencies of the ctypes stanza, which dune now builds in a sandbox

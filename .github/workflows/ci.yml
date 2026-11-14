@@ -31,7 +31,7 @@ jobs:
         os:
           - macos-latest
           - ubuntu-latest
-          # - windows-latest
+          - windows-latest
         ocaml-compiler:
           - 4.14.2
           - 5.4.0
@@ -47,7 +47,7 @@ jobs:
         with:
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
           with-doc: true
-          with-dev-setup: true
+          extra-packages: ocamlformat.0.28.1
 
       - name: Load dune cache
         uses: ml-in-barcelona/gh-ci-action/dune-cache/load@v1.2.0
